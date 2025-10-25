@@ -7,20 +7,69 @@
 const processedAuthors = new Set<string>();
 
 // Promisified sendMessage to ensure response is received before continuing
-function sendRuntimeMessage<T>(message: unknown): Promise<T> {
+function sendRuntimeMessage<T>(message: unknown, retries = 3): Promise<T> {
   return new Promise((resolve, reject) => {
-    try {
-      chrome.runtime.sendMessage(message, (response) => {
-        const lastError = chrome.runtime.lastError;
-        if (lastError) {
-          reject(new Error(lastError.message));
+    const attemptSend = (attempt: number) => {
+      try {
+        // Check if Chrome extension context is available
+        if (
+          typeof chrome === 'undefined' ||
+          !chrome.runtime ||
+          !chrome.runtime.sendMessage
+        ) {
+          if (attempt < retries) {
+            console.log(
+              `Chrome extension context not ready, retrying in 500ms... (attempt ${
+                attempt + 1
+              }/${retries})`
+            );
+            setTimeout(() => attemptSend(attempt + 1), 500);
+            return;
+          } else {
+            reject(
+              new Error('Chrome extension context not available after retries')
+            );
+            return;
+          }
+        }
+
+        chrome.runtime.sendMessage(message, (response) => {
+          const lastError = chrome.runtime.lastError;
+          if (lastError) {
+            if (
+              attempt < retries &&
+              lastError.message?.includes('Receiving end does not exist')
+            ) {
+              console.log(
+                `Extension not ready, retrying in 500ms... (attempt ${
+                  attempt + 1
+                }/${retries})`
+              );
+              setTimeout(() => attemptSend(attempt + 1), 500);
+              return;
+            }
+            reject(
+              new Error(lastError.message || 'Unknown Chrome runtime error')
+            );
+            return;
+          }
+          resolve(response as T);
+        });
+      } catch (error) {
+        if (attempt < retries) {
+          console.log(
+            `Error sending message, retrying in 500ms... (attempt ${
+              attempt + 1
+            }/${retries})`
+          );
+          setTimeout(() => attemptSend(attempt + 1), 500);
           return;
         }
-        resolve(response as T);
-      });
-    } catch (error) {
-      reject(error);
-    }
+        reject(error);
+      }
+    };
+
+    attemptSend(0);
   });
 }
 

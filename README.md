@@ -37,7 +37,7 @@ Over the past 3-5 years, the [Dead Internet Theory](https://en.wikipedia.org/wik
 
   - `platform`: `"reddit" | "x" | "generic"`
   - `userId`: platform identifier (e.g., Reddit username)
-  - `maxItems`: number (<=100)
+  - `count`: number (default 100)
   - `includeParent`: boolean
   - `status`: `"queued" | "fetching" | "scoring" | "done" | "error"`
   - `createdAt`: ms epoch

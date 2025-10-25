@@ -16,7 +16,7 @@ export type RedditCommentsListing = {
 export type AnalysisRequestData = {
   platform: string;
   userId: string;
-  maxItems?: number;
+  count?: number;
   includeParent?: boolean;
   status: 'queued' | 'fetching' | 'done' | 'error';
 };

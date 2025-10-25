@@ -105,7 +105,6 @@ async function processRequest(requestId: string): Promise<void> {
     // Fetch platform data server-side based on platform
     const platform: string = data.platform;
     const userId: string = data.userId;
-    const maxItems: number = Math.min(data.maxItems || 100, 100);
 
     let totalCount = 0;
     let analyzedCount = 0;
@@ -117,7 +116,7 @@ async function processRequest(requestId: string): Promise<void> {
     }> = [];
 
     if (platform === 'reddit') {
-      const comments = await fetchUserComments(userId, maxItems);
+      const comments = await fetchUserComments(userId, 100);
       totalCount = comments.length;
 
       const tokenized = await tokenizeComments(
