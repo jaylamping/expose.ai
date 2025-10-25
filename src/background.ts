@@ -128,11 +128,24 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "CHECK_AUTH_STATUS") {
     initializeClient()
       .then((client) => {
-        sendResponse({ authenticated: client.isAuthenticated() });
+        sendResponse({
+          authenticated: client.isAuthenticated(),
+          hasCredentials: !!(
+            REDDIT_CONFIG.clientId && REDDIT_CONFIG.clientSecret
+          ),
+          clientId: REDDIT_CONFIG.clientId
+            ? `${REDDIT_CONFIG.clientId.substring(0, 8)}...`
+            : null,
+          redirectUri: REDDIT_CONFIG.redirectUri,
+        });
       })
       .catch((error) => {
         console.error("Error checking auth status:", error);
-        sendResponse({ authenticated: false, error: error.message });
+        sendResponse({
+          authenticated: false,
+          hasCredentials: false,
+          error: error.message,
+        });
       });
     return true;
   }
