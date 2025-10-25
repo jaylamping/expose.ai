@@ -8,12 +8,11 @@ import { collection, addDoc } from "firebase/firestore";
 import { initializeFirebase } from "./lib/firebase.ts";
 
 // Reddit App Configuration
-// IMPORTANT: You need to register your app at https://www.reddit.com/prefs/apps
 const REDDIT_CONFIG = {
-  clientId: import.meta.env.VITE_REDDIT_CLIENT_ID || "",
-  clientSecret: import.meta.env.VITE_REDDIT_CLIENT_SECRET || "",
+  clientId: import.meta.env.VITE_REDDIT_CLIENT_ID,
+  clientSecret: import.meta.env.VITE_REDDIT_CLIENT_SECRET,
   redirectUri: chrome.identity.getRedirectURL("oauth2"),
-  userAgent: "chrome-extension:expose.ai:v0.0.1 (by /u/Sweet_Ad_842)",
+  userAgent: import.meta.env.VITE_REDDIT_USER_AGENT,
 };
 
 let redditClient: RedditApiClient | null = null;

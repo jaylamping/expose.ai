@@ -6,8 +6,6 @@ export const HOST_ALLOWLIST = [
 
 export const APP_NAME = "expose.ai";
 export const REDDIT_API_BASE = "https://oauth.reddit.com";
-export const REDDIT_USER_AGENT =
-  "chrome-extension:expose.ai:v0.0.1 (by /u/Sweet_Ad_842)";
 
 // Firebase config env keys expected via Vite env
 export const FIREBASE_CONFIG = {
