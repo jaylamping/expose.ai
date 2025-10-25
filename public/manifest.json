@@ -1,0 +1,20 @@
+{
+  "name": "expose.ai",
+  "version": "0.0.1",
+  "description": "Exposes online bot slop on various popular platforms",
+  "permissions": ["storage", "tabs", "activeTab", "scripting"],
+  "action": {
+    "default_popup": "index.html"
+  },
+  "host_permissions": [
+    "https://*.reddit.com/*",
+    "https://*.twitter.com/*",
+    "https://*.x.com/*",
+    "https://*.instagram.com/*",
+    "https://*.tiktok.com/*"
+  ],
+  "icons": {
+    "512": "icon.png"
+  },
+  "manifest_version": 3
+}
