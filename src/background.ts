@@ -8,11 +8,10 @@ import type { RedditComment } from "./lib/types";
 // Reddit App Configuration
 // IMPORTANT: You need to register your app at https://www.reddit.com/prefs/apps
 const REDDIT_CONFIG = {
-  clientId: import.meta.env.VITE_REDDIT_CLIENT_ID || "YOUR_CLIENT_ID_HERE",
-  clientSecret:
-    import.meta.env.VITE_REDDIT_CLIENT_SECRET || "YOUR_CLIENT_SECRET_HERE",
+  clientId: import.meta.env.VITE_REDDIT_CLIENT_ID || "",
+  clientSecret: import.meta.env.VITE_REDDIT_CLIENT_SECRET || "",
   redirectUri: chrome.identity.getRedirectURL("oauth2"),
-  userAgent: "chrome-extension:expose.ai:v0.0.1 (by /u/YOUR_USERNAME)",
+  userAgent: "chrome-extension:expose.ai:v0.0.1 (by /u/Sweet_Ad_842)",
 };
 
 let redditClient: RedditApiClient | null = null;
@@ -98,7 +97,7 @@ async function fetchUserComments(username: string): Promise<RedditComment[]> {
 /**
  * Message handler for communication with content scripts
  */
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   console.log("Background received message:", message);
 
   if (message.type === "AUTHENTICATE_REDDIT") {

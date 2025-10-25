@@ -16,12 +16,13 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, "index.html"),
         reddit: resolve(__dirname, "src/domains/reddit.ts"),
+        background: resolve(__dirname, "src/background.ts"),
       },
       output: {
         entryFileNames: (chunkInfo) => {
-          return chunkInfo.name === "reddit"
-            ? "reddit.js"
-            : "assets/[name]-[hash].js";
+          if (chunkInfo.name === "reddit") return "reddit.js";
+          if (chunkInfo.name === "background") return "background.js";
+          return "assets/[name]-[hash].js";
         },
       },
     },
