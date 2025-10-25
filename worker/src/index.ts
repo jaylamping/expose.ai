@@ -12,17 +12,6 @@ const db = getFirestore();
 
 // Simple HTTP server to accept manual triggers and run a background poller
 const server = createServer(async (req, res) => {
-  // CORS headers for extension and web clients
-  const origin = (req.headers['origin'] as string | undefined) || '*';
-  const reqHeaders =
-    (req.headers['access-control-request-headers'] as string | undefined) ||
-    'Content-Type, Authorization';
-  res.setHeader('Access-Control-Allow-Origin', origin);
-  res.setHeader('Vary', 'Origin');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', reqHeaders);
-  res.setHeader('Access-Control-Max-Age', '86400');
-
   // Preflight
   if (req.method === 'OPTIONS') {
     res.statusCode = 204;
@@ -95,7 +84,6 @@ const server = createServer(async (req, res) => {
 
 const port = Number(process.env.PORT) || 8080;
 server.listen(port, '0.0.0.0', () => {
-  // eslint-disable-next-line no-console
   console.log('Worker listening on port', port);
   // Start background poller
   pollQueuedRequests(db, processRequest).catch((e) =>
