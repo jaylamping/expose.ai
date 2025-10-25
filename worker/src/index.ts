@@ -7,7 +7,6 @@ import { tokenizeComments } from "./util/tokenizer.js";
 import { RedditComment } from "./lib/types";
 
 // Initialize Firebase Admin
-// Uses GOOGLE_APPLICATION_CREDENTIALS by default in Cloud Run
 initializeApp();
 const db = getFirestore();
 
@@ -60,7 +59,7 @@ server.listen(port, "0.0.0.0", () => {
   // eslint-disable-next-line no-console
   console.log("Worker listening on port", port);
   // Start background poller
-  pollQueuedRequests(processRequest).catch((e) =>
+  pollQueuedRequests(db, processRequest).catch((e) =>
     console.error("poller failed", e)
   );
 });

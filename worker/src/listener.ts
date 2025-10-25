@@ -1,8 +1,10 @@
-import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
-
-const db = getFirestore();
+import type {
+  QueryDocumentSnapshot,
+  Firestore,
+} from "firebase-admin/firestore";
 
 export async function pollQueuedRequests(
+  db: Firestore,
   handler: (id: string) => Promise<void>,
   intervalMs: number = 5000
 ): Promise<void> {
