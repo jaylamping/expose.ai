@@ -23,7 +23,10 @@ export async function getUserComments(
   username: string,
   limit: number = 100
 ): Promise<RedditComment[]> {
-  const endpoint = `/user/${username}/comments?limit=${Math.min(limit, 100)}`;
+  const endpoint = `/user/${username}/comments?limit=${Math.min(
+    limit,
+    100
+  )}&raw_json=1`;
   const response = await client.makeRequest<RedditCommentListing>(endpoint);
 
   return response.data.children.map((child: RedditCommentData) => ({

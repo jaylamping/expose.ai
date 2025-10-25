@@ -83,19 +83,18 @@ async function authenticateWithReddit(): Promise<void> {
 
 /**
  * Fetch user comments from Reddit
- * Assumes the client is already initialized, attempts authentication if needed
+ * Initializes client if needed, attempts authentication if needed
  */
 async function fetchUserComments(username: string): Promise<RedditComment[]> {
-  if (!redditClient) {
-    throw new Error("Reddit client not initialized");
-  }
+  // Initialize client if not already initialized (handles service worker restarts)
+  const client = await initializeClient();
 
   // If not authenticated, attempt to authenticate
-  if (!redditClient.isAuthenticated()) {
+  if (!client.isAuthenticated()) {
     await authenticateWithReddit();
   }
 
-  return await getUserComments(redditClient, username, 100);
+  return await getUserComments(client, username, 100);
 }
 
 /**
