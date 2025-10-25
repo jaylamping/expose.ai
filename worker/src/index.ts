@@ -4,11 +4,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { pollQueuedRequests } from './listener.js';
 import { fetchUserComments, fetchParentContext } from './domains/reddit.js';
 import { tokenizeComments } from './util/tokenizer.js';
-import {
-  analyzeBPC,
-  batchAnalyzeBPC,
-  getAggregateBPCStats,
-} from './util/bpc-analyzer.js';
+import { batchAnalyzeBPC } from './util/bpc-analyzer.js';
 import { createPerplexityScorer } from './ml/perplexity-scorer.js';
 import { createBertClassifier } from './ml/bert-classifier.js';
 import { createCompositeScorer } from './util/composite-scorer.js';

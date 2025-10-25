@@ -61,3 +61,16 @@ export interface AnalysisResultDoc {
   // Confidence metrics
   overallConfidence: number;
 }
+
+export interface FetchOptions {
+  method?: string;
+  headers?: Record<string, string>;
+  body?: string;
+}
+
+export interface FetchResponse {
+  ok: boolean;
+  status: number;
+  statusText: string;
+  json(): Promise<unknown>;
+}

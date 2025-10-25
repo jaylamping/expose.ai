@@ -1,5 +1,10 @@
 import fetch from 'node-fetch';
-import { RedditComment, RedditCommentsListing } from '../lib/types';
+import {
+  FetchOptions,
+  FetchResponse,
+  RedditComment,
+  RedditCommentsListing,
+} from '../lib/types';
 
 interface RedditOAuthToken {
   access_token: string;
@@ -47,19 +52,6 @@ async function getRedditOAuthToken(): Promise<string> {
   tokenExpiry = now + tokenData.expires_in * 1000 - 60000; // 1 minute buffer
 
   return tokenData.access_token;
-}
-
-interface FetchOptions {
-  method?: string;
-  headers?: Record<string, string>;
-  body?: string;
-}
-
-interface FetchResponse {
-  ok: boolean;
-  status: number;
-  statusText: string;
-  json(): Promise<unknown>;
 }
 
 async function fetchWithRetry(

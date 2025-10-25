@@ -1,7 +1,7 @@
 import type {
   QueryDocumentSnapshot,
   Firestore,
-} from "firebase-admin/firestore";
+} from 'firebase-admin/firestore';
 
 export async function pollQueuedRequests(
   db: Firestore,
@@ -9,13 +9,12 @@ export async function pollQueuedRequests(
   intervalMs: number = 5000
 ): Promise<void> {
   // Simple polling loop; replace with EventArc/Firestore triggers if desired
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
       const snap = await db
-        .collection("analysisRequests")
-        .where("status", "==", "queued")
-        .orderBy("createdAt", "asc")
+        .collection('analysisRequests')
+        .where('status', '==', 'queued')
+        .orderBy('createdAt', 'asc')
         .limit(5)
         .get();
 
@@ -24,8 +23,7 @@ export async function pollQueuedRequests(
         await handler(doc.id);
       }
     } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error("Polling error:", e);
+      console.error('Polling error:', e);
     }
 
     await new Promise((r) => setTimeout(r, intervalMs));
