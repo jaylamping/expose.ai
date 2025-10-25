@@ -5,12 +5,6 @@
 
 import type {
   RedditApiConfig,
-  RedditComment,
-  RedditCommentData,
-  RedditCommentListing,
-  RedditPost,
-  RedditPostData,
-  RedditPostListing,
   RedditTokens,
   RedditUserData,
 } from "../lib/types";
@@ -130,7 +124,7 @@ export class RedditApiClient {
   /**
    * Make an authenticated request to Reddit API
    */
-  private async makeRequest<T>(endpoint: string): Promise<T> {
+  async makeRequest<T>(endpoint: string): Promise<T> {
     if (!this.isAuthenticated()) {
       throw new Error("Not authenticated. Please authenticate first.");
     }
@@ -155,57 +149,6 @@ export class RedditApiClient {
     }
 
     return response.json();
-  }
-
-  /**
-   * Fetch user's comments (up to 100)
-   * @param username - Reddit username (without u/ prefix)
-   * @param limit - Number of comments to fetch (max 100)
-   */
-  async getUserComments(
-    username: string,
-    limit: number = 100
-  ): Promise<RedditComment[]> {
-    const endpoint = `/user/${username}/comments?limit=${Math.min(limit, 100)}`;
-    const response = await this.makeRequest<RedditCommentListing>(endpoint);
-
-    return response.data.children.map((child: RedditCommentData) => ({
-      id: child.data.id,
-      author: child.data.author,
-      body: child.data.body,
-      subreddit: child.data.subreddit,
-      created_utc: child.data.created_utc,
-      permalink: `https://www.reddit.com${child.data.permalink}`,
-      score: child.data.score,
-    }));
-  }
-
-  /**
-   * Fetch user's submitted posts (up to 100)
-   * @param username - Reddit username (without u/ prefix)
-   * @param limit - Number of posts to fetch (max 100)
-   */
-  async getUserPosts(
-    username: string,
-    limit: number = 100
-  ): Promise<RedditPost[]> {
-    const endpoint = `/user/${username}/submitted?limit=${Math.min(
-      limit,
-      100
-    )}`;
-    const response = await this.makeRequest<RedditPostListing>(endpoint);
-
-    return response.data.children.map((child: RedditPostData) => ({
-      id: child.data.id,
-      author: child.data.author,
-      title: child.data.title,
-      body: child.data.selftext,
-      subreddit: child.data.subreddit,
-      created_utc: child.data.created_utc,
-      permalink: `https://www.reddit.com${child.data.permalink}`,
-      score: child.data.score,
-      url: child.data.url,
-    }));
   }
 
   /**

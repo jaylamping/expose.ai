@@ -2,7 +2,8 @@
  * Background service worker for handling OAuth2 flow and API calls
  */
 
-import { RedditApiClient } from "./api/reddit-api";
+import { RedditApiClient } from "./clients/reddit-auth";
+import { getUserComments } from "./api/reddit";
 import type { RedditComment } from "./lib/types";
 
 // Reddit App Configuration
@@ -82,16 +83,19 @@ async function authenticateWithReddit(): Promise<void> {
 
 /**
  * Fetch user comments from Reddit
+ * Assumes the client is already initialized, attempts authentication if needed
  */
 async function fetchUserComments(username: string): Promise<RedditComment[]> {
-  const client = await initializeClient();
+  if (!redditClient) {
+    throw new Error("Reddit client not initialized");
+  }
 
-  // If not authenticated, trigger auth flow
-  if (!client.isAuthenticated()) {
+  // If not authenticated, attempt to authenticate
+  if (!redditClient.isAuthenticated()) {
     await authenticateWithReddit();
   }
 
-  return await client.getUserComments(username, 100);
+  return await getUserComments(redditClient, username, 100);
 }
 
 /**
