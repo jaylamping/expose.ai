@@ -1,17 +1,17 @@
 /**
  * Background service worker for handling OAuth2 flow and API calls
  */
-import { RedditApiClient } from "./clients/reddit-auth";
-import { getUserComments } from "./api/reddit";
-import type { RedditComment, AnalysisRequest } from "./lib/types";
-import { collection, addDoc } from "firebase/firestore";
-import { initializeFirebase } from "./lib/firebase.ts";
+import { RedditApiClient } from './clients/reddit-auth';
+import { getUserComments } from './api/reddit';
+import type { RedditComment, AnalysisRequest } from './lib/types';
+import { collection, addDoc } from 'firebase/firestore';
+import { initializeFirebase } from './lib/firebase.ts';
 
 // Reddit App Configuration
 const REDDIT_CONFIG = {
   clientId: import.meta.env.VITE_REDDIT_CLIENT_ID,
   clientSecret: import.meta.env.VITE_REDDIT_CLIENT_SECRET,
-  redirectUri: chrome.identity.getRedirectURL("oauth2"),
+  redirectUri: chrome.identity.getRedirectURL('oauth2'),
   userAgent: import.meta.env.VITE_REDDIT_USER_AGENT,
 };
 
@@ -36,7 +36,7 @@ async function authenticateWithReddit(): Promise<void> {
 
   // Check if already authenticated
   if (client.isAuthenticated()) {
-    console.log("Already authenticated with Reddit");
+    console.log('Already authenticated with Reddit');
     return;
   }
 
@@ -49,36 +49,36 @@ async function authenticateWithReddit(): Promise<void> {
   });
 
   if (!redirectUrl) {
-    throw new Error("Authentication failed: No redirect URL");
+    throw new Error('Authentication failed: No redirect URL');
   }
 
   // Extract code from redirect URL
   const url = new URL(redirectUrl);
-  const code = url.searchParams.get("code");
-  const state = url.searchParams.get("state");
-  const error = url.searchParams.get("error");
+  const code = url.searchParams.get('code');
+  const state = url.searchParams.get('state');
+  const error = url.searchParams.get('error');
 
   if (error) {
     throw new Error(`Authentication failed: ${error}`);
   }
 
   if (!code) {
-    throw new Error("No authorization code received");
+    throw new Error('No authorization code received');
   }
 
   // Verify state
-  const stored = await chrome.storage.local.get("reddit_oauth_state");
+  const stored = await chrome.storage.local.get('reddit_oauth_state');
   if (state !== stored.reddit_oauth_state) {
-    throw new Error("State mismatch - possible CSRF attack");
+    throw new Error('State mismatch - possible CSRF attack');
   }
 
   // Exchange code for token
   await client.exchangeCodeForToken(code);
 
   // Clean up state
-  await chrome.storage.local.remove("reddit_oauth_state");
+  await chrome.storage.local.remove('reddit_oauth_state');
 
-  console.log("Successfully authenticated with Reddit");
+  console.log('Successfully authenticated with Reddit');
 }
 
 /**
@@ -100,38 +100,41 @@ async function fetchUserComments(username: string): Promise<RedditComment[]> {
 /**
  * Message handler for communication with content scripts
  */
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  console.log("Background received message:", message);
+chrome.runtime.onMessage.addListener((message) => {
+  console.log('Background received message:', message);
 
-  if (message.type === "AUTHENTICATE_REDDIT") {
-    authenticateWithReddit()
-      .then(() => sendResponse({ success: true }))
-      .catch((error) => {
-        console.error("Authentication error:", error);
-        sendResponse({ success: false, error: error.message });
-      });
-    return true; // Keep channel open for async response
+  if (message.type === 'AUTHENTICATE_REDDIT') {
+    return (async () => {
+      try {
+        await authenticateWithReddit();
+        return { success: true };
+      } catch (error) {
+        console.error('Authentication error:', error);
+        return { success: false, error: (error as Error).message };
+      }
+    })();
   }
 
-  if (message.type === "FETCH_USER_COMMENTS") {
-    fetchUserComments(message.username)
-      .then((comments) => {
+  if (message.type === 'FETCH_USER_COMMENTS') {
+    return (async () => {
+      try {
+        const comments = await fetchUserComments(message.username);
         console.log(
           `Fetched ${comments.length} comments for ${message.username}`
         );
-        sendResponse({ success: true, comments });
-      })
-      .catch((error) => {
-        console.error("Error fetching comments:", error);
-        sendResponse({ success: false, error: error.message });
-      });
-    return true; // Keep channel open for async response
+        return { success: true, comments };
+      } catch (error) {
+        console.error('Error fetching comments:', error);
+        return { success: false, error: (error as Error).message };
+      }
+    })();
   }
 
-  if (message.type === "CHECK_AUTH_STATUS") {
-    initializeClient()
-      .then((client) => {
-        sendResponse({
+  if (message.type === 'CHECK_AUTH_STATUS') {
+    return (async () => {
+      try {
+        const client = await initializeClient();
+        return {
           authenticated: client.isAuthenticated(),
           hasCredentials: !!(
             REDDIT_CONFIG.clientId && REDDIT_CONFIG.clientSecret
@@ -140,30 +143,26 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             ? `${REDDIT_CONFIG.clientId.substring(0, 8)}...`
             : null,
           redirectUri: REDDIT_CONFIG.redirectUri,
-        });
-      })
-      .catch((error) => {
-        console.error("Error checking auth status:", error);
-        sendResponse({
+        };
+      } catch (error) {
+        console.error('Error checking auth status:', error);
+        return {
           authenticated: false,
           hasCredentials: false,
-          error: error.message,
-        });
-      });
-    return true;
+          error: (error as Error).message,
+        };
+      }
+    })();
   }
 
-  if (message.type === "ANALYZE_USER") {
-    // Fetch comments and prepare for analysis
-    fetchUserComments(message.username)
-      .then(async (comments) => {
+  if (message.type === 'ANALYZE_USER') {
+    return (async () => {
+      try {
+        const comments = await fetchUserComments(message.username);
         console.log(
           `Analyzing ${comments.length} comments for ${message.username}`
         );
-
-        // TODO: Implement AI analysis here
-        // For now, just return the comments data
-        sendResponse({
+        return {
           success: true,
           result: {
             username: message.username,
@@ -178,26 +177,25 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
               humanScore: 1,
             })),
           },
-        });
-      })
-      .catch((error) => {
-        console.error("Error analyzing user:", error);
-        sendResponse({
+        };
+      } catch (error) {
+        console.error('Error analyzing user:', error);
+        return {
           success: false,
-          error: error.message,
-          needsAuth: error.message.includes("authenticate"),
-        });
-      });
-    return true;
+          error: (error as Error).message,
+          needsAuth: (error as Error).message.includes('authenticate'),
+        };
+      }
+    })();
   }
 
-  if (message.type === "QUEUE_USER_ANALYSIS") {
-    (async () => {
+  if (message.type === 'QUEUE_USER_ANALYSIS') {
+    return (async () => {
       try {
         const { platform, userId, maxItems, includeParent } = message;
         // Init Firebase/Firestore lazily
         const db = await initializeFirebase();
-        const requests = collection(db, "analysisRequests");
+        const requests = collection(db, 'analysisRequests');
 
         const now = Date.now();
         const docData: AnalysisRequest = {
@@ -205,7 +203,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           userId,
           maxItems: Math.min(maxItems || 100, 100),
           includeParent: !!includeParent,
-          status: "queued",
+          status: 'queued',
           createdAt: now,
           updatedAt: now,
         };
@@ -220,23 +218,22 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         const workerUrl = import.meta.env.VITE_WORKER_URL as string | undefined;
         if (workerUrl) {
           try {
-            await fetch(`${workerUrl.replace(/\/$/, "")}/analyze`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
+            await fetch(`${workerUrl.replace(/\/$/, '')}/analyze`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ requestId: ref.id }),
             });
-          } catch (_e) {
+          } catch {
             // Non-fatal; the worker may be polling or triggered another way
           }
         }
 
-        sendResponse({ success: true, requestId: ref.id });
+        return { success: true, requestId: ref.id };
       } catch (error) {
-        console.error("Error queuing analysis:", error);
-        sendResponse({ success: false, error: (error as Error).message });
+        console.error('Error queuing analysis:', error);
+        return { success: false, error: (error as Error).message };
       }
     })();
-    return true;
   }
 
   return false;
@@ -244,14 +241,14 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
 // Initialize on install
 chrome.runtime.onInstalled.addListener(() => {
-  console.log("Expose.AI extension installed");
+  console.log('Expose.AI extension installed');
   initializeClient().catch(console.error);
 });
 
 // Initialize on startup
 chrome.runtime.onStartup.addListener(() => {
-  console.log("Expose.AI extension started");
+  console.log('Expose.AI extension started');
   initializeClient().catch(console.error);
 });
 
-console.log("Background service worker loaded");
+console.log('Background service worker loaded');

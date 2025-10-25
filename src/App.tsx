@@ -11,6 +11,19 @@ function App() {
   }, []);
 
   const checkAuthStatus = async () => {
+    const inExtension =
+      typeof chrome !== 'undefined' &&
+      !!chrome.runtime &&
+      !!chrome.runtime.id &&
+      typeof chrome.runtime.sendMessage === 'function';
+
+    if (!inExtension) {
+      console.warn(
+        'Not running inside an extension context. Build and load the unpacked extension, then open the popup.'
+      );
+      setIsAuthenticated(false);
+      return;
+    }
     try {
       const response = await chrome.runtime.sendMessage({
         type: 'CHECK_AUTH_STATUS',
@@ -25,6 +38,17 @@ function App() {
   const handleAuthenticate = async () => {
     setIsAuthenticating(true);
     try {
+      const inExtension =
+        typeof chrome !== 'undefined' &&
+        !!chrome.runtime &&
+        !!chrome.runtime.id &&
+        typeof chrome.runtime.sendMessage === 'function';
+
+      if (!inExtension) {
+        throw new Error(
+          'Popup is not running as a Chrome extension page. Run `npm run build`, load `dist` as an unpacked extension, and open the popup from the toolbar icon.'
+        );
+      }
       const response = await chrome.runtime.sendMessage({
         type: 'AUTHENTICATE_REDDIT',
       });
