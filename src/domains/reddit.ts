@@ -92,11 +92,55 @@ function injectAnalyzeButtons() {
       analyzeBtn.style.transform = "scale(1)";
     };
 
-    analyzeBtn.onclick = (e) => {
+    analyzeBtn.onclick = async (e) => {
       e.preventDefault();
       e.stopPropagation();
       console.log(`Analyze user clicked: ${username}`);
-      // TODO: Implement analysis functionality
+
+      // Show loading state
+      analyzeBtn.textContent = "⏳ Analyzing...";
+      analyzeBtn.style.cursor = "wait";
+
+      try {
+        // Fetch user comments from background script
+        const response = await chrome.runtime.sendMessage({
+          type: "FETCH_USER_COMMENTS",
+          username: username,
+        });
+
+        if (response.success) {
+          console.log(
+            `Successfully fetched ${response.comments.length} comments for ${username}:`,
+            response.comments
+          );
+          analyzeBtn.textContent = "✅ Done";
+          analyzeBtn.style.background =
+            "linear-gradient(135deg, #28a745 0%, #20c997 100%)";
+        } else {
+          console.error(
+            `Failed to fetch comments for ${username}:`,
+            response.error
+          );
+          analyzeBtn.textContent = "❌ Error";
+          analyzeBtn.style.background =
+            "linear-gradient(135deg, #dc3545 0%, #c82333 100%)";
+          alert(`Error: ${response.error}`);
+        }
+      } catch (error) {
+        console.error(`Error analyzing ${username}:`, error);
+        analyzeBtn.textContent = "❌ Error";
+        analyzeBtn.style.background =
+          "linear-gradient(135deg, #dc3545 0%, #c82333 100%)";
+        alert(`Error: ${(error as Error).message}`);
+      } finally {
+        // Reset button after a delay
+        setTimeout(() => {
+          analyzeBtn.textContent = "🤖 Analyze";
+          analyzeBtn.style.background =
+            "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
+          analyzeBtn.style.cursor = "pointer";
+        }, 3000);
+      }
     };
 
     // Try multiple insertion strategies
@@ -147,11 +191,51 @@ function injectAnalyzeButtons() {
       cursor: pointer;
     `;
 
-    analyzeBtn.onclick = (e) => {
+    analyzeBtn.onclick = async (e) => {
       e.preventDefault();
       e.stopPropagation();
       console.log(`Analyze user clicked: ${username}`);
-      // TODO: Implement analysis functionality
+
+      // Show loading state
+      analyzeBtn.textContent = "[⏳ analyzing...]";
+      analyzeBtn.style.cursor = "wait";
+
+      try {
+        // Fetch user comments from background script
+        const response = await chrome.runtime.sendMessage({
+          type: "FETCH_USER_COMMENTS",
+          username: username,
+        });
+
+        if (response.success) {
+          console.log(
+            `Successfully fetched ${response.comments.length} comments for ${username}:`,
+            response.comments
+          );
+          analyzeBtn.textContent = "[✅ done]";
+          analyzeBtn.style.color = "#28a745";
+        } else {
+          console.error(
+            `Failed to fetch comments for ${username}:`,
+            response.error
+          );
+          analyzeBtn.textContent = "[❌ error]";
+          analyzeBtn.style.color = "#dc3545";
+          alert(`Error: ${response.error}`);
+        }
+      } catch (error) {
+        console.error(`Error analyzing ${username}:`, error);
+        analyzeBtn.textContent = "[❌ error]";
+        analyzeBtn.style.color = "#dc3545";
+        alert(`Error: ${(error as Error).message}`);
+      } finally {
+        // Reset button after a delay
+        setTimeout(() => {
+          analyzeBtn.textContent = "[🤖 analyze]";
+          analyzeBtn.style.color = "#7c7cf0";
+          analyzeBtn.style.cursor = "pointer";
+        }, 3000);
+      }
     };
 
     authorElement.insertAdjacentElement("afterend", analyzeBtn);
