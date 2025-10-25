@@ -3,7 +3,8 @@ FROM node:20-slim
 WORKDIR /app
 
 COPY package.json package-lock.json* .npmrc* ./
-RUN npm ci --omit=dev
+# Install dev deps for build, prune later
+RUN npm ci
 
 COPY tsconfig.json ./
 COPY src ./src
