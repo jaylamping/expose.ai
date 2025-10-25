@@ -29,26 +29,24 @@ export interface RedditPost {
 
 export interface RedditComment {
   id: string;
+  parent_id?: string;
+  link_id?: string;
   author: string;
   body: string;
   subreddit: string;
   created_utc: number;
   permalink: string;
   score: number;
+  ups: number;
+  downs: number;
+  controversiality?: number;
+  num_comments?: number;
+  awarders?: string[];
 }
 
 export interface RedditCommentData {
   kind: string;
-  data: {
-    id: string;
-    author: string;
-    body: string;
-    subreddit: string;
-    created_utc: number;
-    permalink: string;
-    score: number;
-    link_title?: string;
-  };
+  data: RedditComment;
 }
 
 export interface RedditCommentListing {

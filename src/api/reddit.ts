@@ -23,21 +23,30 @@ export async function getUserComments(
   username: string,
   limit: number = 100
 ): Promise<RedditComment[]> {
-  const endpoint = `/user/${username}/comments?limit=${Math.min(
-    limit,
-    100
-  )}&raw_json=1`;
+  const endpoint = `/user/${username}/comments?limit=${Math.min(limit, 100)}
+    &raw_json=1`;
   const response = await client.makeRequest<RedditCommentListing>(endpoint);
 
-  return response.data.children.map((child: RedditCommentData) => ({
-    id: child.data.id,
-    author: child.data.author,
-    body: child.data.body,
-    subreddit: child.data.subreddit,
-    created_utc: child.data.created_utc,
-    permalink: `https://www.reddit.com${child.data.permalink}`,
-    score: child.data.score,
-  }));
+  return response.data.children.map((child: RedditCommentData) => {
+    const childData = child.data;
+
+    return {
+      id: childData.id,
+      parent_id: childData.parent_id,
+      link_id: childData.link_id,
+      author: childData.author,
+      body: childData.body,
+      subreddit: childData.subreddit,
+      created_utc: childData.created_utc,
+      permalink: `https://www.reddit.com${childData.permalink}`,
+      score: childData.score,
+      ups: childData.ups,
+      downs: childData.downs,
+      controversiality: childData.controversiality,
+      num_comments: childData.num_comments,
+      awarders: childData.awarders,
+    };
+  });
 }
 
 /**
