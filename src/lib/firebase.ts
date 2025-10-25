@@ -13,6 +13,17 @@ export async function initializeFirebase(): Promise<Firestore> {
       );
     }
     app = getApps().length ? getApps()[0] : initializeApp(FIREBASE_CONFIG);
+    try {
+      // Minimal runtime validation (safe to log projectId)
+      console.log(
+        "Firebase initialized for project:",
+        FIREBASE_CONFIG.projectId,
+        "authDomain:",
+        FIREBASE_CONFIG.authDomain
+      );
+    } catch (_) {
+      // ignore
+    }
   }
   if (!db) {
     db = getFirestore(app);
