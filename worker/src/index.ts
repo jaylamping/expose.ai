@@ -2,9 +2,22 @@ import { createServer } from 'http';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { pollQueuedRequests } from './listener.js';
-import { fetchUserComments } from './domains/reddit.js';
+import { fetchUserComments, fetchParentContext } from './domains/reddit.js';
 import { tokenizeComments } from './util/tokenizer.js';
-import { AnalysisRequestData, RedditComment } from './lib/types';
+import {
+  analyzeBPC,
+  batchAnalyzeBPC,
+  getAggregateBPCStats,
+} from './util/bpc-analyzer.js';
+import { createPerplexityScorer } from './ml/perplexity-scorer.js';
+import { createBertClassifier } from './ml/bert-classifier.js';
+import { createCompositeScorer } from './util/composite-scorer.js';
+import {
+  AnalysisRequestData,
+  RedditComment,
+  AnalysisPerCommentSummary,
+  AnalysisResultDoc,
+} from './lib/types';
 
 // Initialize Firebase Admin
 initializeApp();
@@ -102,64 +115,199 @@ async function processRequest(requestId: string): Promise<void> {
   await reqRef.update({ status: 'fetching', updatedAt: Date.now() });
 
   try {
-    // Fetch platform data server-side based on platform
     const platform: string = data.platform;
     const userId: string = data.userId;
 
     let totalCount = 0;
     let analyzedCount = 0;
-    let perComment: Array<{
-      commentId: string;
-      score: number;
-      numTokens: number;
-      hasParent?: boolean;
-    }> = [];
+    let perComment: AnalysisPerCommentSummary[] = [];
 
     if (platform === 'reddit') {
       const comments = await fetchUserComments(userId, 100);
       totalCount = comments.length;
 
-      const tokenized = await tokenizeComments(
-        comments
-          .filter((c: RedditComment) => (c.body || '').trim().length >= 20)
-          .map((c) => ({ id: c.id, text: c.body }))
+      // Filter comments with sufficient content
+      const validComments = comments.filter(
+        (c: RedditComment) => (c.body || '').trim().length >= 20
       );
 
-      // Placeholder scoring: score by length proxy
-      perComment = tokenized.map((t) => ({
-        commentId: t.id,
-        score: Math.min(1, t.tokens.length / 300),
-        numTokens: t.tokens.length,
-      }));
+      if (validComments.length === 0) {
+        throw new Error('No valid comments found for analysis');
+      }
 
+      // Initialize scorers
+      const compositeScorer = createCompositeScorer();
+      const perplexityScorer = createPerplexityScorer();
+      const bertClassifier = createBertClassifier();
+
+      // Stage 1: BPC Analysis
+      console.log(
+        `Stage 1: Running BPC analysis on ${validComments.length} comments`
+      );
+      const bpcResults = batchAnalyzeBPC(
+        validComments.map((c) => ({ id: c.id, text: c.body }))
+      );
+
+      // Create initial comment summaries
+      perComment = validComments.map((c, index) => {
+        const bpcResult = bpcResults[index];
+        const tokenized = (
+          await tokenizeComments([{ id: c.id, text: c.body }])
+        )[0];
+
+        return {
+          commentId: c.id,
+          score: bpcResult.analysis.bpcScore,
+          numTokens: tokenized.tokenCount,
+          bpcScore: bpcResult.analysis.bpcScore,
+          stage: 'bpc' as const,
+          confidence:
+            bpcResult.analysis.confidence === 'high'
+              ? 1
+              : bpcResult.analysis.confidence === 'medium'
+              ? 0.5
+              : 0,
+          isInconclusive: bpcResult.analysis.isInconclusive,
+        };
+      });
+
+      // Stage 2: ML Analysis for inconclusive cases
+      const inconclusiveComments = perComment.filter((c) =>
+        compositeScorer.needsFurtherAnalysis(c)
+      );
+
+      if (inconclusiveComments.length > 0) {
+        console.log(
+          `Stage 2: Running ML analysis on ${inconclusiveComments.length} inconclusive comments`
+        );
+
+        const mlTexts = inconclusiveComments.map((c) => ({
+          id: c.commentId,
+          text: validComments.find((vc) => vc.id === c.commentId)?.body || '',
+        }));
+
+        // Run perplexity and BERT analysis in parallel
+        const [perplexityResults, bertResults] = await Promise.all([
+          perplexityScorer.scoreTexts(mlTexts),
+          bertClassifier.classifyTexts(mlTexts),
+        ]);
+
+        // Update inconclusive comments with ML scores
+        inconclusiveComments.forEach((comment, index) => {
+          const perplexityResult = perplexityResults.find(
+            (r) => r.id === comment.commentId
+          );
+          const bertResult = bertResults.find(
+            (r) => r.id === comment.commentId
+          );
+
+          if (perplexityResult && bertResult) {
+            comment.perplexityScore = perplexityResult.score.score;
+            comment.bertScore = bertResult.score.score;
+            comment.stage = 'ml';
+            comment.confidence = Math.max(
+              perplexityResult.score.confidence,
+              bertResult.score.confidence
+            );
+
+            // Recalculate composite score
+            comment.score = compositeScorer.calculateScore(comment);
+          }
+        });
+      }
+
+      // Stage 3: Parent Context for still inconclusive cases
+      const stillInconclusive = perComment.filter((c) =>
+        compositeScorer.needsFurtherAnalysis(c)
+      );
+
+      if (stillInconclusive.length > 0) {
+        console.log(
+          `Stage 3: Fetching parent context for ${stillInconclusive.length} comments`
+        );
+
+        // Fetch parent context for inconclusive comments
+        const contextPromises = stillInconclusive.map(async (comment) => {
+          try {
+            const parentContext = await fetchParentContext(comment.commentId);
+            if (parentContext) {
+              // Combine parent + child text
+              const originalComment = validComments.find(
+                (c) => c.id === comment.commentId
+              );
+              const combinedText = `${parentContext}\n\n${
+                originalComment?.body || ''
+              }`;
+
+              // Re-run ML analysis with combined context
+              const [perplexityResult, bertResult] = await Promise.all([
+                perplexityScorer.scoreText(combinedText),
+                bertClassifier.classifyText(combinedText),
+              ]);
+
+              comment.perplexityScore = perplexityResult.score;
+              comment.bertScore = bertResult.score;
+              comment.stage = 'context';
+              comment.usedParentContext = true;
+              comment.confidence = Math.max(
+                perplexityResult.confidence,
+                bertResult.confidence
+              );
+
+              // Recalculate composite score
+              comment.score = compositeScorer.calculateScore(comment);
+            }
+          } catch (error) {
+            console.error(
+              `Failed to fetch parent context for ${comment.commentId}:`,
+              error
+            );
+          }
+        });
+
+        await Promise.all(contextPromises);
+      }
+
+      // Calculate final scores
       analyzedCount = perComment.length;
+
+      // Calculate user-level statistics
+      const userStats = compositeScorer.calculateUserScore(perComment);
+
+      const resultDoc: AnalysisResultDoc = {
+        requestRef: reqRef.path,
+        platform,
+        userId,
+        userScore: userStats.userScore,
+        analyzedCount,
+        totalCount,
+        perComment,
+        method: 'cascading-bpc-ml-context-v1',
+        createdAt: Date.now(),
+        bpcAnalyzed: userStats.statistics.bpcAnalyzed,
+        mlAnalyzed: userStats.statistics.mlAnalyzed,
+        contextAnalyzed: userStats.statistics.contextAnalyzed,
+        averageBPC: userStats.statistics.averageBPC,
+        averagePerplexity: userStats.statistics.averagePerplexity,
+        averageBert: userStats.statistics.averageBert,
+        overallConfidence: userStats.confidence,
+      };
+
+      await db.collection('analysisResults').doc(requestId).set(resultDoc);
+      await reqRef.update({ status: 'done', updatedAt: Date.now() });
+
+      console.log(
+        `Analysis complete for ${userId}: ${userStats.userScore.toFixed(
+          3
+        )} (confidence: ${userStats.confidence.toFixed(3)})`
+      );
     } else {
       totalCount = 0;
       analyzedCount = 0;
       perComment = [];
     }
-
-    // Placeholder result
-    const resultDoc = {
-      requestRef: reqRef.path,
-      platform,
-      userId,
-      userScore: perComment.length
-        ? Math.min(
-            1,
-            perComment.reduce((s, x) => s + x.score, 0) / perComment.length
-          )
-        : 0,
-      analyzedCount,
-      totalCount,
-      perComment,
-      method: 'placeholder-length-proxy',
-      createdAt: Date.now(),
-    };
-
-    await db.collection('analysisResults').doc(requestId).set(resultDoc);
-    await reqRef.update({ status: 'done', updatedAt: Date.now() });
   } catch (e) {
+    console.error('Analysis failed:', e);
     await reqRef.update({
       status: 'error',
       errorMessage: (e as Error).message,
