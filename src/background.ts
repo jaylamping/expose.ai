@@ -100,19 +100,31 @@ async function fetchUserComments(username: string): Promise<RedditComment[]> {
 /**
  * Message handler for communication with content scripts
  */
-chrome.runtime.onMessage.addListener((message) => {
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   console.log('Background received message:', message);
 
+  // Ensure we always respond to prevent port closure
+  const handleResponse = (response: unknown) => {
+    try {
+      if (sendResponse) {
+        sendResponse(response);
+      }
+    } catch (error) {
+      console.error('Error sending response:', error);
+    }
+  };
+
   if (message.type === 'AUTHENTICATE_REDDIT') {
-    return (async () => {
+    (async () => {
       try {
         await authenticateWithReddit();
-        return { success: true };
+        handleResponse({ success: true });
       } catch (error) {
         console.error('Authentication error:', error);
-        return { success: false, error: (error as Error).message };
+        handleResponse({ success: false, error: (error as Error).message });
       }
     })();
+    return true; // Keep channel open
   }
 
   if (message.type === 'FETCH_USER_COMMENTS') {
@@ -190,9 +202,12 @@ chrome.runtime.onMessage.addListener((message) => {
   }
 
   if (message.type === 'QUEUE_USER_ANALYSIS') {
-    return (async () => {
+    (async () => {
       try {
+        console.log('Starting QUEUE_USER_ANALYSIS for:', message.userId);
         const { platform, userId, maxItems, includeParent } = message;
+
+        console.log('Initializing Firebase...');
         // Init Firebase/Firestore lazily
         const db = await initializeFirebase();
         const requests = collection(db, 'analysisRequests');
@@ -208,32 +223,24 @@ chrome.runtime.onMessage.addListener((message) => {
           updatedAt: now,
         };
 
+        console.log('Adding document to Firestore...');
         const ref = await addDoc(requests, {
           ...docData,
           createdAt: now,
           updatedAt: now,
         });
 
-        // Optionally notify the worker if configured
-        const workerUrl = import.meta.env.VITE_WORKER_URL as string | undefined;
-        if (workerUrl) {
-          try {
-            await fetch(`${workerUrl.replace(/\/$/, '')}/analyze`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ requestId: ref.id }),
-            });
-          } catch {
-            // Non-fatal; the worker may be polling or triggered another way
-          }
-        }
+        console.log('Successfully queued analysis:', ref.id);
+        // Worker will poll for queued requests automatically
+        // No need to notify directly due to CORS restrictions
 
-        return { success: true, requestId: ref.id };
+        handleResponse({ success: true, requestId: ref.id });
       } catch (error) {
         console.error('Error queuing analysis:', error);
-        return { success: false, error: (error as Error).message };
+        handleResponse({ success: false, error: (error as Error).message });
       }
     })();
+    return true; // Keep channel open
   }
 
   return false;

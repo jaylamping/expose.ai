@@ -13,9 +13,15 @@ const db = getFirestore();
 // Simple HTTP server to accept manual triggers and run a background poller
 const server = createServer(async (req, res) => {
   // CORS headers for extension and web clients
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const origin = (req.headers['origin'] as string | undefined) || '*';
+  const reqHeaders =
+    (req.headers['access-control-request-headers'] as string | undefined) ||
+    'Content-Type, Authorization';
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', reqHeaders);
+  res.setHeader('Access-Control-Max-Age', '86400');
 
   // Preflight
   if (req.method === 'OPTIONS') {
@@ -38,6 +44,27 @@ const server = createServer(async (req, res) => {
         ? JSON.parse(Buffer.concat(chunks).toString('utf-8'))
         : {};
       const requestId: string | undefined = body.requestId;
+      if (!requestId) {
+        res.statusCode = 400;
+        res.end('Missing requestId');
+        return;
+      }
+
+      await processRequest(requestId);
+      res.statusCode = 200;
+      res.end('ok');
+      return;
+    } catch (e) {
+      res.statusCode = 500;
+      res.end((e as Error).message);
+      return;
+    }
+  }
+
+  if (req.method === 'GET' && req.url.startsWith('/analyze')) {
+    try {
+      const url = new URL(req.url, `http://${req.headers.host}`);
+      const requestId = url.searchParams.get('requestId');
       if (!requestId) {
         res.statusCode = 400;
         res.end('Missing requestId');
