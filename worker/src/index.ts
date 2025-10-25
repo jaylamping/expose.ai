@@ -1,10 +1,10 @@
-import { createServer } from "http";
-import { initializeApp } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
-import { pollQueuedRequests } from "./listener.js";
-import { fetchUserComments } from "./domains/reddit.js";
-import { tokenizeComments } from "./util/tokenizer.js";
-import { RedditComment } from "./lib/types";
+import { createServer } from 'http';
+import { initializeApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+import { pollQueuedRequests } from './listener.js';
+import { fetchUserComments } from './domains/reddit.js';
+import { tokenizeComments } from './util/tokenizer.js';
+import { AnalysisRequestData, RedditComment } from './lib/types';
 
 // Initialize Firebase Admin
 initializeApp();
@@ -12,29 +12,41 @@ const db = getFirestore();
 
 // Simple HTTP server to accept manual triggers and run a background poller
 const server = createServer(async (req, res) => {
-  if (!req.url) {
-    res.statusCode = 400;
-    res.end("Bad Request");
+  // CORS headers for extension and web clients
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  // Preflight
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204;
+    res.end();
     return;
   }
 
-  if (req.method === "POST" && req.url.startsWith("/analyze")) {
+  if (!req.url) {
+    res.statusCode = 400;
+    res.end('Bad Request');
+    return;
+  }
+
+  if (req.method === 'POST' && req.url.startsWith('/analyze')) {
     try {
       const chunks: Buffer[] = [];
       for await (const chunk of req) chunks.push(chunk as Buffer);
       const body = chunks.length
-        ? JSON.parse(Buffer.concat(chunks).toString("utf-8"))
+        ? JSON.parse(Buffer.concat(chunks).toString('utf-8'))
         : {};
       const requestId: string | undefined = body.requestId;
       if (!requestId) {
         res.statusCode = 400;
-        res.end("Missing requestId");
+        res.end('Missing requestId');
         return;
       }
 
       await processRequest(requestId);
       res.statusCode = 200;
-      res.end("ok");
+      res.end('ok');
       return;
     } catch (e) {
       res.statusCode = 500;
@@ -44,35 +56,35 @@ const server = createServer(async (req, res) => {
   }
 
   // Health check
-  if (req.method === "GET" && req.url === "/healthz") {
+  if (req.method === 'GET' && req.url === '/healthz') {
     res.statusCode = 200;
-    res.end("ok");
+    res.end('ok');
     return;
   }
 
   res.statusCode = 404;
-  res.end("not found");
+  res.end('not found');
 });
 
 const port = Number(process.env.PORT) || 8080;
-server.listen(port, "0.0.0.0", () => {
+server.listen(port, '0.0.0.0', () => {
   // eslint-disable-next-line no-console
-  console.log("Worker listening on port", port);
+  console.log('Worker listening on port', port);
   // Start background poller
   pollQueuedRequests(db, processRequest).catch((e) =>
-    console.error("poller failed", e)
+    console.error('poller failed', e)
   );
 });
 
 async function processRequest(requestId: string): Promise<void> {
-  const reqRef = db.collection("analysisRequests").doc(requestId);
+  const reqRef = db.collection('analysisRequests').doc(requestId);
   const reqSnap = await reqRef.get();
   if (!reqSnap.exists) return;
 
-  const data = reqSnap.data() as any;
-  if (data.status !== "queued") return;
+  const data = reqSnap.data() as AnalysisRequestData;
+  if (data.status !== 'queued') return;
 
-  await reqRef.update({ status: "fetching", updatedAt: Date.now() });
+  await reqRef.update({ status: 'fetching', updatedAt: Date.now() });
 
   try {
     // Fetch platform data server-side based on platform
@@ -89,13 +101,13 @@ async function processRequest(requestId: string): Promise<void> {
       hasParent?: boolean;
     }> = [];
 
-    if (platform === "reddit") {
+    if (platform === 'reddit') {
       const comments = await fetchUserComments(userId, maxItems);
       totalCount = comments.length;
 
       const tokenized = await tokenizeComments(
         comments
-          .filter((c: RedditComment) => (c.body || "").trim().length >= 20)
+          .filter((c: RedditComment) => (c.body || '').trim().length >= 20)
           .map((c) => ({ id: c.id, text: c.body }))
       );
 
@@ -127,15 +139,15 @@ async function processRequest(requestId: string): Promise<void> {
       analyzedCount,
       totalCount,
       perComment,
-      method: "placeholder-length-proxy",
+      method: 'placeholder-length-proxy',
       createdAt: Date.now(),
     };
 
-    await db.collection("analysisResults").doc(requestId).set(resultDoc);
-    await reqRef.update({ status: "done", updatedAt: Date.now() });
+    await db.collection('analysisResults').doc(requestId).set(resultDoc);
+    await reqRef.update({ status: 'done', updatedAt: Date.now() });
   } catch (e) {
     await reqRef.update({
-      status: "error",
+      status: 'error',
       errorMessage: (e as Error).message,
       updatedAt: Date.now(),
     });

@@ -10,5 +10,13 @@ export interface RedditComment {
 }
 
 export type RedditCommentsListing = {
-  data?: { children?: Array<{ data: any }> };
+  data?: { children?: Array<{ data: RedditComment }> };
+};
+
+export type AnalysisRequestData = {
+  platform: string;
+  userId: string;
+  maxItems?: number;
+  includeParent?: boolean;
+  status: 'queued' | 'fetching' | 'done' | 'error';
 };
