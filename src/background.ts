@@ -216,6 +216,20 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           updatedAt: now,
         });
 
+        // Optionally notify the worker if configured
+        const workerUrl = import.meta.env.VITE_WORKER_URL as string | undefined;
+        if (workerUrl) {
+          try {
+            await fetch(`${workerUrl.replace(/\/$/, "")}/analyze`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ requestId: ref.id }),
+            });
+          } catch (_e) {
+            // Non-fatal; the worker may be polling or triggered another way
+          }
+        }
+
         sendResponse({ success: true, requestId: ref.id });
       } catch (error) {
         console.error("Error queuing analysis:", error);

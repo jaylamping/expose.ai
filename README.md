@@ -31,6 +31,29 @@ Over the past 3-5 years, the [Dead Internet Theory](https://en.wikipedia.org/wik
 - Browser Extension Framework
 - Centralized Database for shared analysis results
 
+## Firestore schema (initial)
+
+- `analysisRequests/{requestId}`
+
+  - `platform`: `"reddit" | "x" | "generic"`
+  - `userId`: platform identifier (e.g., Reddit username)
+  - `maxItems`: number (<=100)
+  - `includeParent`: boolean
+  - `status`: `"queued" | "fetching" | "scoring" | "done" | "error"`
+  - `createdAt`: ms epoch
+  - `updatedAt`: ms epoch
+  - `requestHash`: optional dedup key
+  - `errorMessage`: optional
+
+- `analysisResults/{requestId}`
+  - `requestRef`: path to the originating `analysisRequests` doc
+  - `platform`, `userId`
+  - `userScore`: 0..1
+  - `analyzedCount`, `totalCount`
+  - `perComment`: array of `{ commentId, score, numTokens, hasParent }`
+  - `method`: scorer descriptor/version
+  - `createdAt`: ms epoch
+
 ## References
 
 https://datascience.stackexchange.com/questions/56145/what-is-bit-per-character
