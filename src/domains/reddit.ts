@@ -6,6 +6,24 @@
 // Track which users have already been processed
 const processedAuthors = new Set<string>();
 
+// Promisified sendMessage to ensure response is received before continuing
+function sendRuntimeMessage<T>(message: unknown): Promise<T> {
+  return new Promise((resolve, reject) => {
+    try {
+      chrome.runtime.sendMessage(message, (response) => {
+        const lastError = chrome.runtime.lastError;
+        if (lastError) {
+          reject(new Error(lastError.message));
+          return;
+        }
+        resolve(response as T);
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
 // Inject analyze buttons into Reddit comments/posts
 function injectAnalyzeButtons() {
   // For new Reddit (reddit.com) - multiple selector strategies
@@ -33,25 +51,25 @@ function injectAnalyzeButtons() {
       const elements = document.querySelectorAll(selector);
       elements.forEach((el) => {
         // Only add if it's actually a user link
-        const href = el.getAttribute("href");
-        if (href && href.includes("/user/")) {
+        const href = el.getAttribute('href');
+        if (href && href.includes('/user/')) {
           authorElements.push(el);
         }
       });
-    } catch (e) {
+    } catch {
       // Selector might not be valid in all cases
     }
   });
 
   authorElements.forEach((authorElement) => {
-    const username = authorElement.textContent?.trim().replace(/^u\//, "");
+    const username = authorElement.textContent?.trim().replace(/^u\//, '');
 
-    if (!username || username === "[deleted]" || username === "[removed]") {
+    if (!username || username === '[deleted]' || username === '[removed]') {
       return;
     }
 
     // Create a more unique key based on the element itself
-    const uniqueKey = `${username}-${authorElement.getAttribute("href") || ""}`;
+    const uniqueKey = `${username}-${authorElement.getAttribute('href') || ''}`;
 
     if (processedAuthors.has(uniqueKey)) {
       return;
@@ -60,9 +78,9 @@ function injectAnalyzeButtons() {
     processedAuthors.add(uniqueKey);
 
     // Create analyze button
-    const analyzeBtn = document.createElement("button");
-    analyzeBtn.textContent = "🤖 Analyze";
-    analyzeBtn.className = "expose-ai-analyze-btn";
+    const analyzeBtn = document.createElement('button');
+    analyzeBtn.textContent = '🤖 Analyze';
+    analyzeBtn.className = 'expose-ai-analyze-btn';
     analyzeBtn.style.cssText = `
       display: inline-flex;
       margin-left: 8px;
@@ -83,13 +101,13 @@ function injectAnalyzeButtons() {
     `;
 
     analyzeBtn.onmouseover = () => {
-      analyzeBtn.style.opacity = "1";
-      analyzeBtn.style.transform = "scale(1.05)";
+      analyzeBtn.style.opacity = '1';
+      analyzeBtn.style.transform = 'scale(1.05)';
     };
 
     analyzeBtn.onmouseout = () => {
-      analyzeBtn.style.opacity = "0.8";
-      analyzeBtn.style.transform = "scale(1)";
+      analyzeBtn.style.opacity = '0.8';
+      analyzeBtn.style.transform = 'scale(1)';
     };
 
     analyzeBtn.onclick = async (e) => {
@@ -98,14 +116,18 @@ function injectAnalyzeButtons() {
       console.log(`Analyze user clicked: ${username}`);
 
       // Show loading state
-      analyzeBtn.textContent = "⏳ Analyzing...";
-      analyzeBtn.style.cursor = "wait";
+      analyzeBtn.textContent = '⏳ Analyzing...';
+      analyzeBtn.style.cursor = 'wait';
 
       try {
         // Queue analysis request (async job)
-        const queueResponse = await chrome.runtime.sendMessage({
-          type: "QUEUE_USER_ANALYSIS",
-          platform: "reddit",
+        const queueResponse = await sendRuntimeMessage<{
+          success: boolean;
+          error?: string;
+          requestId?: string;
+        }>({
+          type: 'QUEUE_USER_ANALYSIS',
+          platform: 'reddit',
           userId: username,
           maxItems: 100,
           includeParent: true,
@@ -113,32 +135,33 @@ function injectAnalyzeButtons() {
 
         if (queueResponse.success) {
           console.log(`Queued analysis for ${username}:`, queueResponse);
-          analyzeBtn.textContent = "📝 Queued";
+          analyzeBtn.textContent = '📝 Queued';
           analyzeBtn.style.background =
-            "linear-gradient(135deg, #17a2b8 0%, #20c997 100%)";
+            'linear-gradient(135deg, #17a2b8 0%, #20c997 100%)';
         } else {
           console.error(
             `Failed to queue analysis for ${username}:`,
             queueResponse.error
           );
-          analyzeBtn.textContent = "❌ Error";
+          analyzeBtn.textContent = '❌ Error';
           analyzeBtn.style.background =
-            "linear-gradient(135deg, #dc3545 0%, #c82333 100%)";
+            'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
           alert(`Error: ${queueResponse.error}`);
         }
       } catch (error) {
         console.error(`Error analyzing ${username}:`, error);
-        analyzeBtn.textContent = "❌ Error";
+        analyzeBtn.textContent = '❌ Error';
         analyzeBtn.style.background =
-          "linear-gradient(135deg, #dc3545 0%, #c82333 100%)";
-        alert(`Error: ${(error as Error).message}`);
+          'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
+        const msg = (error as Error)?.message || String(error);
+        alert(`Error: ${msg}`);
       } finally {
         // Reset button after a delay
         setTimeout(() => {
-          analyzeBtn.textContent = "🤖 Analyze";
+          analyzeBtn.textContent = '🤖 Analyze';
           analyzeBtn.style.background =
-            "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
-          analyzeBtn.style.cursor = "pointer";
+            'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+          analyzeBtn.style.cursor = 'pointer';
         }, 3000);
       }
     };
@@ -147,32 +170,32 @@ function injectAnalyzeButtons() {
     const parentElement = authorElement.parentElement;
     if (parentElement) {
       // Check if we're in a slot context
-      const slotParent = authorElement.closest("slot");
+      const slotParent = authorElement.closest('slot');
       if (slotParent) {
         // Insert after the slot element
-        slotParent.insertAdjacentElement("afterend", analyzeBtn);
+        slotParent.insertAdjacentElement('afterend', analyzeBtn);
       } else {
         // Standard insertion
-        authorElement.insertAdjacentElement("afterend", analyzeBtn);
+        authorElement.insertAdjacentElement('afterend', analyzeBtn);
       }
     }
   });
 
   // For old Reddit (old.reddit.com)
   const oldRedditAuthors = document.querySelectorAll(
-    ".author:not(.submitter):not(.moderator)"
+    '.author:not(.submitter):not(.moderator)'
   );
 
   oldRedditAuthors.forEach((authorElement) => {
     const username = authorElement.textContent?.trim();
 
-    if (!username || username === "[deleted]" || username === "[removed]") {
+    if (!username || username === '[deleted]' || username === '[removed]') {
       return;
     }
 
     const commentId =
-      authorElement.closest(".comment")?.getAttribute("data-fullname") ||
-      "post";
+      authorElement.closest('.comment')?.getAttribute('data-fullname') ||
+      'post';
     const uniqueKey = `${username}-${commentId}`;
 
     if (processedAuthors.has(uniqueKey)) {
@@ -181,9 +204,9 @@ function injectAnalyzeButtons() {
 
     processedAuthors.add(uniqueKey);
 
-    const analyzeBtn = document.createElement("a");
-    analyzeBtn.textContent = "[🤖 analyze]";
-    analyzeBtn.className = "expose-ai-analyze-btn";
+    const analyzeBtn = document.createElement('a');
+    analyzeBtn.textContent = '[🤖 analyze]';
+    analyzeBtn.className = 'expose-ai-analyze-btn';
     analyzeBtn.style.cssText = `
       margin-left: 4px;
       color: #7c7cf0;
@@ -197,14 +220,18 @@ function injectAnalyzeButtons() {
       console.log(`Analyze user clicked: ${username}`);
 
       // Show loading state
-      analyzeBtn.textContent = "[⏳ analyzing...]";
-      analyzeBtn.style.cursor = "wait";
+      analyzeBtn.textContent = '[⏳ analyzing...]';
+      analyzeBtn.style.cursor = 'wait';
 
       try {
         // Queue analysis request (async job)
-        const queueResponse = await chrome.runtime.sendMessage({
-          type: "QUEUE_USER_ANALYSIS",
-          platform: "reddit",
+        const queueResponse = await sendRuntimeMessage<{
+          success: boolean;
+          error?: string;
+          requestId?: string;
+        }>({
+          type: 'QUEUE_USER_ANALYSIS',
+          platform: 'reddit',
           userId: username,
           maxItems: 100,
           includeParent: true,
@@ -212,33 +239,34 @@ function injectAnalyzeButtons() {
 
         if (queueResponse.success) {
           console.log(`Queued analysis for ${username}:`, queueResponse);
-          analyzeBtn.textContent = "[📝 queued]";
-          analyzeBtn.style.color = "#17a2b8";
+          analyzeBtn.textContent = '[📝 queued]';
+          analyzeBtn.style.color = '#17a2b8';
         } else {
           console.error(
             `Failed to queue analysis for ${username}:`,
             queueResponse.error
           );
-          analyzeBtn.textContent = "[❌ error]";
-          analyzeBtn.style.color = "#dc3545";
+          analyzeBtn.textContent = '[❌ error]';
+          analyzeBtn.style.color = '#dc3545';
           alert(`Error: ${queueResponse.error}`);
         }
       } catch (error) {
         console.error(`Error analyzing ${username}:`, error);
-        analyzeBtn.textContent = "[❌ error]";
-        analyzeBtn.style.color = "#dc3545";
-        alert(`Error: ${(error as Error).message}`);
+        analyzeBtn.textContent = '[❌ error]';
+        analyzeBtn.style.color = '#dc3545';
+        const msg = (error as Error)?.message || String(error);
+        alert(`Error: ${msg}`);
       } finally {
         // Reset button after a delay
         setTimeout(() => {
-          analyzeBtn.textContent = "[🤖 analyze]";
-          analyzeBtn.style.color = "#7c7cf0";
-          analyzeBtn.style.cursor = "pointer";
+          analyzeBtn.textContent = '[🤖 analyze]';
+          analyzeBtn.style.color = '#7c7cf0';
+          analyzeBtn.style.cursor = 'pointer';
         }, 3000);
       }
     };
 
-    authorElement.insertAdjacentElement("afterend", analyzeBtn);
+    authorElement.insertAdjacentElement('afterend', analyzeBtn);
   });
 }
 
@@ -257,12 +285,12 @@ function init() {
     subtree: true,
   });
 
-  console.log("Expose.AI: Content script loaded on Reddit");
+  console.log('Expose.AI: Content script loaded on Reddit');
 }
 
 // Wait for page to be ready
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", init);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
 } else {
   init();
 }

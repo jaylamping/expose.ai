@@ -4,7 +4,7 @@
 import { RedditApiClient } from './clients/reddit-auth';
 import { getUserComments } from './api/reddit';
 import type { RedditComment, AnalysisRequest } from './lib/types';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc } from 'firebase/firestore/lite';
 import { initializeFirebase } from './lib/firebase.ts';
 
 // Reddit App Configuration

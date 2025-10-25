@@ -6,6 +6,23 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
+  function sendRuntimeMessage<T>(message: unknown): Promise<T> {
+    return new Promise((resolve, reject) => {
+      try {
+        chrome.runtime.sendMessage(message, (response) => {
+          const lastError = chrome.runtime.lastError;
+          if (lastError) {
+            reject(new Error(lastError.message));
+            return;
+          }
+          resolve(response as T);
+        });
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
   useEffect(() => {
     checkAuthStatus();
   }, []);
@@ -25,7 +42,7 @@ function App() {
       return;
     }
     try {
-      const response = await chrome.runtime.sendMessage({
+      const response = await sendRuntimeMessage<{ authenticated: boolean }>({
         type: 'CHECK_AUTH_STATUS',
       });
       setIsAuthenticated(response.authenticated);
@@ -49,9 +66,10 @@ function App() {
           'Popup is not running as a Chrome extension page. Run `npm run build`, load `dist` as an unpacked extension, and open the popup from the toolbar icon.'
         );
       }
-      const response = await chrome.runtime.sendMessage({
-        type: 'AUTHENTICATE_REDDIT',
-      });
+      const response = await sendRuntimeMessage<{
+        success: boolean;
+        error?: string;
+      }>({ type: 'AUTHENTICATE_REDDIT' });
 
       if (response.success) {
         await checkAuthStatus();
