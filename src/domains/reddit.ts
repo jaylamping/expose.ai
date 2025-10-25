@@ -102,29 +102,29 @@ function injectAnalyzeButtons() {
       analyzeBtn.style.cursor = "wait";
 
       try {
-        // Fetch user comments from background script
-        const response = await chrome.runtime.sendMessage({
-          type: "FETCH_USER_COMMENTS",
-          username: username,
+        // Queue analysis request (async job)
+        const queueResponse = await chrome.runtime.sendMessage({
+          type: "QUEUE_USER_ANALYSIS",
+          platform: "reddit",
+          userId: username,
+          maxItems: 100,
+          includeParent: true,
         });
 
-        if (response.success) {
-          console.log(
-            `Successfully fetched ${response.comments.length} comments for ${username}:`,
-            response.comments
-          );
-          analyzeBtn.textContent = "✅ Done";
+        if (queueResponse.success) {
+          console.log(`Queued analysis for ${username}:`, queueResponse);
+          analyzeBtn.textContent = "📝 Queued";
           analyzeBtn.style.background =
-            "linear-gradient(135deg, #28a745 0%, #20c997 100%)";
+            "linear-gradient(135deg, #17a2b8 0%, #20c997 100%)";
         } else {
           console.error(
-            `Failed to fetch comments for ${username}:`,
-            response.error
+            `Failed to queue analysis for ${username}:`,
+            queueResponse.error
           );
           analyzeBtn.textContent = "❌ Error";
           analyzeBtn.style.background =
             "linear-gradient(135deg, #dc3545 0%, #c82333 100%)";
-          alert(`Error: ${response.error}`);
+          alert(`Error: ${queueResponse.error}`);
         }
       } catch (error) {
         console.error(`Error analyzing ${username}:`, error);
@@ -201,27 +201,27 @@ function injectAnalyzeButtons() {
       analyzeBtn.style.cursor = "wait";
 
       try {
-        // Fetch user comments from background script
-        const response = await chrome.runtime.sendMessage({
-          type: "FETCH_USER_COMMENTS",
-          username: username,
+        // Queue analysis request (async job)
+        const queueResponse = await chrome.runtime.sendMessage({
+          type: "QUEUE_USER_ANALYSIS",
+          platform: "reddit",
+          userId: username,
+          maxItems: 100,
+          includeParent: true,
         });
 
-        if (response.success) {
-          console.log(
-            `Successfully fetched ${response.comments.length} comments for ${username}:`,
-            response.comments
-          );
-          analyzeBtn.textContent = "[✅ done]";
-          analyzeBtn.style.color = "#28a745";
+        if (queueResponse.success) {
+          console.log(`Queued analysis for ${username}:`, queueResponse);
+          analyzeBtn.textContent = "[📝 queued]";
+          analyzeBtn.style.color = "#17a2b8";
         } else {
           console.error(
-            `Failed to fetch comments for ${username}:`,
-            response.error
+            `Failed to queue analysis for ${username}:`,
+            queueResponse.error
           );
           analyzeBtn.textContent = "[❌ error]";
           analyzeBtn.style.color = "#dc3545";
-          alert(`Error: ${response.error}`);
+          alert(`Error: ${queueResponse.error}`);
         }
       } catch (error) {
         console.error(`Error analyzing ${username}:`, error);

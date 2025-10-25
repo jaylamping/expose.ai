@@ -1,10 +1,11 @@
 /**
  * Background service worker for handling OAuth2 flow and API calls
  */
-
 import { RedditApiClient } from "./clients/reddit-auth";
 import { getUserComments } from "./api/reddit";
-import type { RedditComment } from "./lib/types";
+import type { RedditComment, AnalysisRequest } from "./lib/types";
+import { collection, addDoc } from "firebase/firestore";
+import { initializeFirebase } from "./lib/firebase.ts";
 
 // Reddit App Configuration
 // IMPORTANT: You need to register your app at https://www.reddit.com/prefs/apps
@@ -188,6 +189,40 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           needsAuth: error.message.includes("authenticate"),
         });
       });
+    return true;
+  }
+
+  if (message.type === "QUEUE_USER_ANALYSIS") {
+    (async () => {
+      try {
+        const { platform, userId, maxItems, includeParent } = message;
+        // Init Firebase/Firestore lazily
+        const db = await initializeFirebase();
+        const requests = collection(db, "analysisRequests");
+
+        const now = Date.now();
+        const docData: AnalysisRequest = {
+          platform,
+          userId,
+          maxItems: Math.min(maxItems || 100, 100),
+          includeParent: !!includeParent,
+          status: "queued",
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        const ref = await addDoc(requests, {
+          ...docData,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        sendResponse({ success: true, requestId: ref.id });
+      } catch (error) {
+        console.error("Error queuing analysis:", error);
+        sendResponse({ success: false, error: (error as Error).message });
+      }
+    })();
     return true;
   }
 
