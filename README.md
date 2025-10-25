@@ -21,7 +21,7 @@ Expose.AI is a browser extension designed to combat the proliferation of bot and
 - **Advanced Detection**: Leverages perplexity-based transformers, BERT models, bits-per-character performance checks and "anti" cross entropy checks for (hopefully) accurate AI text detection. Contextual/behavorial checks (having more than 8 braincells on r/4chan or only posting on r/politics) are still up in the air as idk how to approach these with no bias.
 - **Multi-Platform Support**: Initially rolling out on Reddit but if detection models actually work, this is fully scalable across any text based platform and possibly multi-modal platforms as well.
 
-## The Motivation
+## Motivation
 
 Over the past 3-5 years, the [Dead Internet Theory](https://en.wikipedia.org/wiki/Dead_Internet_theory) has felt less like a theory and more like reality. This extension is an attempt to shine a light on the automated accounts flooding social media and help users distinguish genuine human interaction from AI-generated content.
 
@@ -31,6 +31,16 @@ Over the past 3-5 years, the [Dead Internet Theory](https://en.wikipedia.org/wik
 - Browser Extension Framework
 - Centralized Database for shared analysis results
 
+## References
+
+https://datascience.stackexchange.com/questions/56145/what-is-bit-per-character
+
+https://thegradient.pub/understanding-evaluation-metrics-for-language-models/
+
+https://arxiv.org/pdf/1308.0850
+
+![Bits-per-character](./images/bpc.png)
+
 #
 
-In a sad twist of irony, I had gippity create this README for me because I hate documentation.. oh well.
+In a sad twist of irony, I had gippity create most of this README for me because I hate documentation.. oh well.
