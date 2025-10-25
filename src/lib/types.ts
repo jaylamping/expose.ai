@@ -97,24 +97,24 @@ export interface AIAnalysisResult {
 }
 
 export interface AnalysisMessage {
-  type: "ANALYZE_USER";
+  type: 'ANALYZE_USER';
   username: string;
 }
 
 export interface AnalysisResponse {
-  type: "ANALYSIS_RESULT";
+  type: 'ANALYSIS_RESULT';
   result: AIAnalysisResult | null;
   error?: string;
 }
 
 // Firestore types
 export interface AnalysisRequest {
-  platform: "reddit" | "x" | "generic";
+  platform: 'reddit' | 'x' | 'generic';
   userId: string; // platform-specific user identifier
-  maxItems?: number; // default 100
   includeParent?: boolean; // whether to fetch parent context
   requestedBy?: string; // optional extension install id or anonymized id
-  status: "queued" | "fetching" | "scoring" | "done" | "error";
+  status: 'queued' | 'fetching' | 'scoring' | 'done' | 'error';
+  count?: number;
   createdAt: number; // ms epoch
   updatedAt: number; // ms epoch
   // Optional server-filled fields
@@ -131,7 +131,7 @@ export interface AnalysisPerCommentSummary {
 
 export interface AnalysisResultDoc {
   requestRef: string; // path to the request doc
-  platform: AnalysisRequest["platform"];
+  platform: AnalysisRequest['platform'];
   userId: string;
   userScore: number; // 0..1
   analyzedCount: number;

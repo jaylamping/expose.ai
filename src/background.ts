@@ -204,11 +204,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === 'QUEUE_USER_ANALYSIS') {
     (async () => {
       try {
-        console.log('Starting QUEUE_USER_ANALYSIS for:', message.userId);
-        const { platform, userId, maxItems, includeParent } = message;
+        const { platform, userId, count, includeParent } = message;
 
-        console.log('Initializing Firebase...');
-        // Init Firebase/Firestore lazily
         const db = await initializeFirebase();
         const requests = collection(db, 'analysisRequests');
 
@@ -216,23 +213,18 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         const docData: AnalysisRequest = {
           platform,
           userId,
-          maxItems: Math.min(maxItems || 100, 100),
+          count: count ?? 100,
           includeParent: !!includeParent,
           status: 'queued',
           createdAt: now,
           updatedAt: now,
         };
 
-        console.log('Adding document to Firestore...');
         const ref = await addDoc(requests, {
           ...docData,
           createdAt: now,
           updatedAt: now,
         });
-
-        console.log('Successfully queued analysis:', ref.id);
-        // Worker will poll for queued requests automatically
-        // No need to notify directly due to CORS restrictions
 
         handleResponse({ success: true, requestId: ref.id });
       } catch (error) {

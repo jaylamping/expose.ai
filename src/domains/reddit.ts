@@ -129,7 +129,6 @@ function injectAnalyzeButtons() {
           type: 'QUEUE_USER_ANALYSIS',
           platform: 'reddit',
           userId: username,
-          maxItems: 100,
           includeParent: true,
         });
 
