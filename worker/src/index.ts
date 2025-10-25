@@ -1,9 +1,9 @@
 import { createServer } from "http";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
-import { pollQueuedRequests } from "./listener";
-import { fetchUserComments } from "./domains/reddit";
-import { tokenizeComments } from "./util/tokenizer";
+import { pollQueuedRequests } from "./listener.js";
+import { fetchUserComments } from "./domains/reddit.js";
+import { tokenizeComments } from "./util/tokenizer.js";
 import { RedditComment } from "./lib/types";
 
 // Initialize Firebase Admin
@@ -55,9 +55,10 @@ const server = createServer(async (req, res) => {
   res.end("not found");
 });
 
-server.listen(process.env.PORT || 8080, () => {
+const port = Number(process.env.PORT) || 8080;
+server.listen(port, "0.0.0.0", () => {
   // eslint-disable-next-line no-console
-  console.log("Worker listening on port", process.env.PORT || 8080);
+  console.log("Worker listening on port", port);
   // Start background poller
   pollQueuedRequests(processRequest).catch((e) =>
     console.error("poller failed", e)
