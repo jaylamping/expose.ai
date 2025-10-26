@@ -96,7 +96,7 @@ const server = createServer(async (req, res) => {
 });
 
 const port = Number(process.env.PORT) || 8080;
-server.listen(port, '0.0.0.0', () => {
+server.listen(port, () => {
   pollQueuedRequests(db, processRequest).catch((e) =>
     console.error('poller failed', e)
   );
