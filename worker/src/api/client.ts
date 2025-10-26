@@ -2,7 +2,7 @@
  * Generic ML API client for model repo
  * https://github.com/jaylamping/expose-ai-ml
  */
-import fetch from 'node-fetch';
+import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
 import type {
   AnalyzeUserRequest,
   AnalyzeUserResponse,
@@ -23,180 +23,32 @@ export class MLAPIClient {
   }
 
   /**
-   * Make a request to the ML API
-   */
-  async request<T = unknown>(
-    model: string,
-    inputs: string | string[] | Record<string, unknown>,
-    options: {
-      wait_for_model?: boolean;
-      use_cache?: boolean;
-      [key: string]: unknown;
-    } = {}
-  ): Promise<MLAPIResponse<T>> {
-    const url = `${this.config.baseUrl}/models/${model}`;
-
-    const requestOptions = {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(this.config.apiKey && {
-          Authorization: `Bearer ${this.config.apiKey}`,
-        }),
-      },
-      body: JSON.stringify({
-        inputs,
-        options: {
-          wait_for_model: true,
-          use_cache: false,
-          ...options,
-        },
-      }),
-    };
-
-    let lastError: Error | null = null;
-
-    for (let attempt = 0; attempt < this.config.maxRetries; attempt++) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(
-          () => controller.abort(),
-          this.config.timeout
-        );
-
-        const response = await fetch(url, {
-          ...requestOptions,
-          signal: controller.signal,
-        });
-
-        clearTimeout(timeoutId);
-
-        if (response.status === 429) {
-          // Rate limited - exponential backoff
-          const delay = Math.pow(2, attempt) * 1000;
-          console.log(
-            `ML API rate limited, waiting ${delay}ms before retry ${
-              attempt + 1
-            }/${this.config.maxRetries}`
-          );
-          await new Promise((resolve) => setTimeout(resolve, delay));
-          continue;
-        }
-
-        if (response.status === 503) {
-          // Service unavailable - wait and retry
-          const delay = Math.pow(2, attempt) * 2000;
-          console.log(
-            `ML API service unavailable, waiting ${delay}ms before retry ${
-              attempt + 1
-            }/${this.config.maxRetries}`
-          );
-          await new Promise((resolve) => setTimeout(resolve, delay));
-          continue;
-        }
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(
-            `ML API request failed: ${response.status} ${response.statusText} - ${errorText}`
-          );
-        }
-
-        const data = await response.json();
-        return {
-          success: true,
-          data: data as T,
-        };
-      } catch (error) {
-        lastError = error as Error;
-        console.log(
-          `ML API request attempt ${attempt + 1}/${
-            this.config.maxRetries
-          } failed:`,
-          error instanceof Error ? error.message : String(error)
-        );
-
-        if (attempt < this.config.maxRetries - 1) {
-          const delay = Math.pow(2, attempt) * 1000;
-          await new Promise((resolve) => setTimeout(resolve, delay));
-        }
-      }
-    }
-
-    return {
-      success: false,
-      error: `Max retries exceeded: ${lastError?.message || 'Unknown error'}`,
-    };
-  }
-
-  /**
-   * Classify text using a classification model
-   */
-  async classifyText(
-    text: string,
-    model: string,
-    options: { wait_for_model?: boolean; use_cache?: boolean } = {}
-  ): Promise<MLAPIResponse<Array<{ label: string; score: number }>>> {
-    return this.request(model, text, options);
-  }
-
-  /**
-   * Generate text using a generation model
-   */
-  async generateText(
-    text: string,
-    model: string,
-    options: { wait_for_model?: boolean; use_cache?: boolean } = {}
-  ): Promise<MLAPIResponse<Array<{ generated_text: string }>>> {
-    return this.request(model, text, options);
-  }
-
-  /**
-   * Calculate perplexity using a language model
-   */
-  async calculatePerplexity(
-    text: string,
-    model: string,
-    options: { wait_for_model?: boolean; use_cache?: boolean } = {}
-  ): Promise<MLAPIResponse<Array<{ perplexity: number }>>> {
-    return this.request(model, text, options);
-  }
-
-  /**
    * Analyze a user for bot detection using the expose-ai-ml API
    */
   async analyzeUser(
     request: AnalyzeUserRequest
   ): Promise<MLAPIResponse<AnalyzeUserResponse>> {
-    const url = `${this.config.baseUrl}/api/v1/analyze-user`;
+    const url = `${this.config.baseUrl}/api/v1/analyze/user`;
+    console.log('url', url);
 
-    const requestOptions = {
+    const requestConfig: AxiosRequestConfig = {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(this.config.apiKey && {
-          Authorization: `Bearer ${this.config.apiKey}`,
-        }),
-      },
-      body: JSON.stringify(request),
+      url,
+      // headers: {
+      //   'Content-Type': 'application/json',
+      //   ...(this.config.apiKey && {
+      //     Authorization: `Bearer ${this.config.apiKey}`,
+      //   }),
+      // },
+      data: request,
+      timeout: this.config.timeout,
     };
 
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt < this.config.maxRetries; attempt++) {
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(
-          () => controller.abort(),
-          this.config.timeout
-        );
-
-        const response = await fetch(url, {
-          ...requestOptions,
-          signal: controller.signal,
-        });
-
-        clearTimeout(timeoutId);
+        const response: AxiosResponse = await axios(requestConfig);
 
         if (response.status === 429) {
           // Rate limited - exponential backoff
@@ -222,20 +74,39 @@ export class MLAPIClient {
           continue;
         }
 
-        if (!response.ok) {
-          const errorText = await response.text();
+        return {
+          success: true,
+          data: response.data as AnalyzeUserResponse,
+        };
+      } catch (error: unknown) {
+        lastError = error as Error;
+
+        // Handle axios-specific error responses
+        if (error && typeof error === 'object' && 'response' in error) {
+          const axiosError = error as {
+            response: { status: number; statusText: string; data: unknown };
+          };
+          const status = axiosError.response.status;
+          if (status === 429 || status === 503) {
+            const delay = Math.pow(2, attempt) * (status === 429 ? 1000 : 2000);
+            console.log(
+              `ML API ${
+                status === 429 ? 'rate limited' : 'service unavailable'
+              }, waiting ${delay}ms before retry ${attempt + 1}/${
+                this.config.maxRetries
+              }`
+            );
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            continue;
+          }
+
           throw new Error(
-            `ML API analyze-user request failed: ${response.status} ${response.statusText} - ${errorText}`
+            `ML API analyze-user request failed: ${status} ${
+              axiosError.response.statusText
+            } - ${JSON.stringify(axiosError.response.data)}`
           );
         }
 
-        const data = await response.json();
-        return {
-          success: true,
-          data: data as AnalyzeUserResponse,
-        };
-      } catch (error) {
-        lastError = error as Error;
         console.log(
           `ML API analyze-user request attempt ${attempt + 1}/${
             this.config.maxRetries
