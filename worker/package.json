@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "GOOGLE_APPLICATION_CREDENTIALS=./expose-ai-worker-key.json tsx watch src/index.ts",
     "start": "node dist/index.js",
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "deploy": "gcloud run deploy expose-ai-worker --source=. --platform=managed --region=us-central1"
   },
   "dependencies": {
     "dotenv": "^17.2.3",

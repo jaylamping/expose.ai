@@ -7,7 +7,7 @@ import { BertConfig, BertScore } from '../lib/types';
 import {
   HuggingFaceClient,
   createHuggingFaceClient,
-} from './huggingface-client';
+} from './huggingface-client.js';
 
 const DEFAULT_CONFIG: BertConfig = {
   model: 'Hello-SimpleAI/chatgpt-detector-roberta',

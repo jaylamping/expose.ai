@@ -17,7 +17,7 @@ import {
   RedditComment,
   AnalysisPerCommentSummary,
   AnalysisResultDoc,
-} from './lib/types';
+} from './lib/types.js';
 
 // Initialize Firebase Admin
 const app = initializeApp();

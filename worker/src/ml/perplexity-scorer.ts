@@ -7,7 +7,7 @@ import { PerplexityConfig, PerplexityScore } from '../lib/types';
 import {
   HuggingFaceClient,
   createHuggingFaceClient,
-} from './huggingface-client';
+} from './huggingface-client.js';
 
 const DEFAULT_CONFIG: PerplexityConfig = {
   model: 'gpt2',
