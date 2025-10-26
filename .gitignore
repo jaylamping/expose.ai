@@ -16,6 +16,9 @@ dist-ssr
 .env
 .env.local
 
+# API Keys and credentials
+expose-ai-worker-key.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
