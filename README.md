@@ -62,6 +62,8 @@ https://thegradient.pub/understanding-evaluation-metrics-for-language-models/
 
 https://arxiv.org/pdf/1308.0850
 
+https://aclanthology.org/2025.genaidetect-1.15.pdf
+
 ![Bits-per-character](./images/bpc.png)
 
 #
