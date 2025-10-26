@@ -133,12 +133,6 @@ async function processRequest(requestId: string): Promise<void> {
   }
 
   const data = reqSnap.data() as AnalysisRequestData;
-  console.log(`📋 Request data:`, {
-    platform: data.platform,
-    userId: data.userId,
-    status: data.status,
-    count: data.count,
-  });
 
   if (data.status !== 'queued') {
     console.log(
@@ -160,14 +154,7 @@ async function processRequest(requestId: string): Promise<void> {
     if (platform === 'reddit') {
       console.log(`📥 Fetching Reddit comments for user: ${userId}`);
       const comments = await fetchRedditCommentsForUser(userId, 100);
-      console.log(
-        `📊 Fetched ${comments.length} total comments from Reddit API`
-      );
 
-      // Filter comments with sufficient content
-      console.log(
-        `🔍 Filtering comments with sufficient content (>= 15 characters)...`
-      );
       const validComments = comments.filter(
         (c: RedditComment) => (c.body || '').trim().length >= 10
       );
@@ -184,9 +171,6 @@ async function processRequest(requestId: string): Promise<void> {
         throw new Error('No valid comments found for analysis');
       }
 
-      console.log(
-        `✅ Found ${validComments.length} valid comments for analysis`
-      );
       console.log(`📝 Sample valid comment:`, {
         id: validComments[0]?.id,
         body: validComments[0]?.body?.substring(0, 150) + '...',

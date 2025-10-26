@@ -104,7 +104,6 @@ export async function fetchRedditCommentsForUser(
       username
     )}/comments?limit=${Math.min(limit, 100)}&raw_json=1`;
 
-    console.log(`📡 Making OAuth request to: ${url}`);
     const response = await fetchWithRetry(url, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -116,9 +115,6 @@ export async function fetchRedditCommentsForUser(
       console.log('✅ OAuth request successful');
       const json = response.data as RedditCommentsListing;
       const children = json.data?.children ?? [];
-      console.log(
-        `📊 Raw API response contains ${children.length} comment objects`
-      );
 
       const comments = children.map((c: { data: RedditComment }) => {
         const d = c.data;
@@ -132,15 +128,6 @@ export async function fetchRedditCommentsForUser(
           permalink: `https://www.reddit.com${d.permalink}`,
           score: d.score,
         } as RedditComment;
-      });
-
-      console.log(`📝 Processed ${comments.length} comments from OAuth API`);
-      console.log('📋 Sample comment structure:', {
-        id: comments[0]?.id,
-        body: comments[0]?.body?.substring(0, 100) + '...',
-        subreddit: comments[0]?.subreddit,
-        score: comments[0]?.score,
-        created_utc: comments[0]?.created_utc,
       });
 
       return comments;
