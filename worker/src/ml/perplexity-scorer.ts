@@ -3,23 +3,11 @@
  * Lower perplexity = more likely AI-generated
  */
 
+import { PerplexityConfig, PerplexityScore } from '../lib/types';
 import {
   HuggingFaceClient,
   createHuggingFaceClient,
 } from './huggingface-client';
-
-export interface PerplexityScore {
-  score: number; // 0-1, higher = more likely AI
-  confidence: number; // 0-1, confidence in the score
-  rawPerplexity: number; // Raw perplexity value
-}
-
-export interface PerplexityConfig {
-  model: string;
-  maxLength: number;
-  minLength: number;
-  threshold: number; // Perplexity threshold for AI detection
-}
 
 const DEFAULT_CONFIG: PerplexityConfig = {
   model: 'gpt2',

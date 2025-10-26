@@ -3,24 +3,11 @@
  * Uses pre-trained models specifically trained for AI text detection
  */
 
+import { BertConfig, BertScore } from '../lib/types';
 import {
   HuggingFaceClient,
   createHuggingFaceClient,
 } from './huggingface-client';
-
-export interface BertScore {
-  score: number; // 0-1, higher = more likely AI
-  confidence: number; // 0-1, confidence in the score
-  label: string; // Human or AI
-  rawScore: number; // Raw model output
-}
-
-export interface BertConfig {
-  model: string;
-  maxLength: number;
-  minLength: number;
-  threshold: number; // Score threshold for AI detection
-}
 
 const DEFAULT_CONFIG: BertConfig = {
   model: 'Hello-SimpleAI/chatgpt-detector-roberta',

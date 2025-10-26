@@ -74,3 +74,43 @@ export interface FetchResponse {
   statusText: string;
   json(): Promise<unknown>;
 }
+
+export interface BertScore {
+  score: number; // 0-1, higher = more likely AI
+  confidence: number; // 0-1, confidence in the score
+  label: string; // Human or AI
+  rawScore: number; // Raw model output
+}
+
+export interface BertConfig {
+  model: string;
+  maxLength: number;
+  minLength: number;
+  threshold: number; // Score threshold for AI detection
+}
+
+export interface HuggingFaceConfig {
+  apiKey: string;
+  baseUrl?: string;
+  timeout?: number;
+  maxRetries?: number;
+}
+
+export interface HuggingFaceResponse<T = unknown> {
+  data: T;
+  error?: string;
+  success: boolean;
+}
+
+export interface PerplexityScore {
+  score: number; // 0-1, higher = more likely AI
+  confidence: number; // 0-1, confidence in the score
+  rawPerplexity: number; // Raw perplexity value
+}
+
+export interface PerplexityConfig {
+  model: string;
+  maxLength: number;
+  minLength: number;
+  threshold: number; // Perplexity threshold for AI detection
+}

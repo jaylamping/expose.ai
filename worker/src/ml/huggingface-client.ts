@@ -1,21 +1,8 @@
 /**
  * HuggingFace Inference API client for ML model inference
  */
-
 import fetch from 'node-fetch';
-
-export interface HuggingFaceConfig {
-  apiKey: string;
-  baseUrl?: string;
-  timeout?: number;
-  maxRetries?: number;
-}
-
-export interface HuggingFaceResponse<T = unknown> {
-  data: T;
-  error?: string;
-  success: boolean;
-}
+import { HuggingFaceConfig, HuggingFaceResponse } from '../lib/types';
 
 export class HuggingFaceClient {
   private config: Required<HuggingFaceConfig>;

@@ -93,8 +93,6 @@ const server = createServer(async (req, res) => {
 
 const port = Number(process.env.PORT) || 8080;
 server.listen(port, '0.0.0.0', () => {
-  console.log('Worker listening on port', port);
-  // Start background poller
   pollQueuedRequests(db, processRequest).catch((e) =>
     console.error('poller failed', e)
   );
@@ -124,14 +122,14 @@ async function processRequest(requestId: string): Promise<void> {
 
       // Filter comments with sufficient content
       const validComments = comments.filter(
-        (c: RedditComment) => (c.body || '').trim().length >= 20
+        (c: RedditComment) => (c.body || '').trim().length >= 15
       );
 
       if (validComments.length === 0) {
         throw new Error('No valid comments found for analysis');
       }
 
-      // Initialize scorers
+      // Initialize scorers / classifiers
       const compositeScorer = createCompositeScorer();
       const perplexityScorer = createPerplexityScorer();
       const bertClassifier = createBertClassifier();
@@ -145,11 +143,13 @@ async function processRequest(requestId: string): Promise<void> {
       );
 
       // Create initial comment summaries
+      const tokenizedResults = await tokenizeComments(
+        validComments.map((c) => ({ id: c.id, text: c.body }))
+      );
+
       perComment = validComments.map((c, index) => {
         const bpcResult = bpcResults[index];
-        const tokenized = (
-          await tokenizeComments([{ id: c.id, text: c.body }])
-        )[0];
+        const tokenized = tokenizedResults[index];
 
         return {
           commentId: c.id,
@@ -189,7 +189,7 @@ async function processRequest(requestId: string): Promise<void> {
         ]);
 
         // Update inconclusive comments with ML scores
-        inconclusiveComments.forEach((comment, index) => {
+        for (const comment of inconclusiveComments) {
           const perplexityResult = perplexityResults.find(
             (r) => r.id === comment.commentId
           );
@@ -209,7 +209,7 @@ async function processRequest(requestId: string): Promise<void> {
             // Recalculate composite score
             comment.score = compositeScorer.calculateScore(comment);
           }
-        });
+        }
       }
 
       // Stage 3: Parent Context for still inconclusive cases

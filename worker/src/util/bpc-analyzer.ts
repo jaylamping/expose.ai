@@ -20,7 +20,7 @@ export interface BPCConfig {
 const DEFAULT_CONFIG: BPCConfig = {
   botThreshold: 2.0,
   humanThreshold: 4.5,
-  minLength: 20,
+  minLength: 15, // Lowered to catch more Reddit/Twitter comments
 };
 
 /**
