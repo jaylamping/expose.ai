@@ -209,9 +209,9 @@ async function processRequest(requestId: string): Promise<void> {
 
         return {
           commentId: c.id,
-          score: bpcResult.analysis.bpcScore,
+          score: bpcResult.analysis.normalizedScore, // Use normalized score (0-1)
           numTokens: tokenized.tokenCount,
-          bpcScore: bpcResult.analysis.bpcScore,
+          bpcScore: bpcResult.analysis.normalizedScore, // Use normalized score (0-1)
           stage: 'bpc' as const,
           confidence:
             bpcResult.analysis.confidence === 'high'
@@ -223,13 +223,20 @@ async function processRequest(requestId: string): Promise<void> {
         };
       });
 
+      // Calculate raw BPC average for display
+      const rawBPCResults = bpcResults.map((r) => r.analysis.bpcScore);
+      const averageRawBPC =
+        rawBPCResults.reduce((sum, score) => sum + score, 0) /
+        rawBPCResults.length;
+
       console.log(`📊 Stage 1 BPC Results Summary:`, {
         totalComments: perComment.length,
         highConfidence: perComment.filter((c) => c.confidence === 1).length,
         mediumConfidence: perComment.filter((c) => c.confidence === 0.5).length,
         lowConfidence: perComment.filter((c) => c.confidence === 0).length,
         inconclusive: perComment.filter((c) => c.isInconclusive).length,
-        averageBPCScore: (
+        averageRawBPC: averageRawBPC.toFixed(3),
+        averageNormalizedBPC: (
           perComment.reduce((sum, c) => sum + (c.bpcScore || 0), 0) /
           perComment.length
         ).toFixed(3),
@@ -425,6 +432,146 @@ async function processRequest(requestId: string): Promise<void> {
         averageBert: userStats.statistics.averageBert.toFixed(3),
       });
 
+      // Detailed bot detection explanation
+      console.log(`\n🤖 BOT DETECTION ANALYSIS`);
+      console.log(
+        `═══════════════════════════════════════════════════════════`
+      );
+
+      const userScore = userStats.userScore;
+      const confidence = userStats.confidence;
+
+      // Determine bot likelihood
+      let botLikelihood: string;
+      let explanation: string;
+      let recommendation: string;
+
+      if (userScore >= 0.8) {
+        botLikelihood = '🤖 VERY HIGH - Likely AI/Bot';
+        explanation = `User score of ${userScore.toFixed(
+          3
+        )} indicates strong AI-generated content patterns. The analysis found consistent markers of automated text generation across multiple comments.`;
+        recommendation =
+          'This user shows strong indicators of being an AI or bot. Consider flagging for review.';
+      } else if (userScore >= 0.6) {
+        botLikelihood = '⚠️ HIGH - Probably AI/Bot';
+        explanation = `User score of ${userScore.toFixed(
+          3
+        )} suggests significant AI-generated content. Multiple comments show patterns consistent with automated text generation.`;
+        recommendation =
+          'This user likely uses AI assistance or is a bot. Monitor their activity closely.';
+      } else if (userScore >= 0.4) {
+        botLikelihood = '🔍 MODERATE - Possibly AI-assisted';
+        explanation = `User score of ${userScore.toFixed(
+          3
+        )} indicates some AI-generated content mixed with human writing. Some comments show automated patterns.`;
+        recommendation =
+          'This user may use AI tools for some content. Consider this when evaluating their posts.';
+      } else if (userScore >= 0.2) {
+        botLikelihood = '✅ LOW - Likely Human';
+        explanation = `User score of ${userScore.toFixed(
+          3
+        )} suggests mostly human-generated content with minimal AI assistance. Writing patterns appear natural.`;
+        recommendation =
+          'This user appears to be writing content naturally. Low bot probability.';
+      } else {
+        botLikelihood = '✅ VERY LOW - Definitely Human';
+        explanation = `User score of ${userScore.toFixed(
+          3
+        )} indicates strongly human-generated content. No significant AI patterns detected.`;
+        recommendation =
+          'This user shows clear human writing patterns. Very low bot probability.';
+      }
+
+      console.log(`🎯 DETECTION RESULT: ${botLikelihood}`);
+      console.log(
+        `📊 User Score: ${userScore.toFixed(3)}/1.0 (0 = Human, 1 = Bot)`
+      );
+      console.log(`🎯 Confidence: ${(confidence * 100).toFixed(1)}%`);
+      console.log(`📝 Explanation: ${explanation}`);
+      console.log(`💡 Recommendation: ${recommendation}`);
+
+      // Confidence assessment
+      let confidenceLevel: string;
+      if (confidence >= 0.8) {
+        confidenceLevel = '🟢 HIGH CONFIDENCE';
+      } else if (confidence >= 0.6) {
+        confidenceLevel = '🟡 MEDIUM CONFIDENCE';
+      } else {
+        confidenceLevel = '🔴 LOW CONFIDENCE';
+      }
+
+      console.log(`\n📊 CONFIDENCE ASSESSMENT: ${confidenceLevel}`);
+      console.log(`   • Analysis Quality: ${(confidence * 100).toFixed(1)}%`);
+      console.log(
+        `   • Comments Analyzed: ${analyzedCount}/${totalCount} (${(
+          (analyzedCount / totalCount) *
+          100
+        ).toFixed(1)}%)`
+      );
+      console.log(`   • Analysis Stages Used:`);
+      console.log(
+        `     - BPC Analysis: ${userStats.statistics.bpcAnalyzed} comments`
+      );
+      console.log(
+        `     - ML Analysis: ${userStats.statistics.mlAnalyzed} comments`
+      );
+      console.log(
+        `     - Context Analysis: ${userStats.statistics.contextAnalyzed} comments`
+      );
+
+      // Score breakdown explanation
+      console.log(`\n🔍 SCORE BREAKDOWN:`);
+      console.log(
+        `   • BPC Score (Raw Entropy): ${userStats.statistics.averageBPC.toFixed(
+          3
+        )}`
+      );
+      console.log(`     - Raw bits-per-character entropy measurement`);
+      console.log(
+        `     - Lower values suggest more structured/AI-generated text`
+      );
+      console.log(`     - Higher values suggest more random/human writing`);
+      console.log(
+        `   • Normalized Score: ${userStats.userScore.toFixed(3)}/1.0`
+      );
+      console.log(`     - 0.0 = Definitely Human, 1.0 = Definitely Bot`);
+      console.log(`     - Based on BPC normalization algorithm`);
+
+      if (userStats.statistics.averagePerplexity > 0) {
+        console.log(
+          `   • Perplexity Score: ${userStats.statistics.averagePerplexity.toFixed(
+            3
+          )}`
+        );
+        console.log(
+          `     - Measures how "surprising" the text is to AI models`
+        );
+        console.log(`     - Lower values suggest AI-generated content`);
+        console.log(`     - Higher values suggest human creativity`);
+      }
+
+      if (userStats.statistics.averageBert > 0) {
+        console.log(
+          `   • BERT Classification: ${userStats.statistics.averageBert.toFixed(
+            3
+          )}`
+        );
+        console.log(`     - AI model trained to detect human vs AI text`);
+        console.log(`     - Values closer to 1 suggest AI-generated content`);
+        console.log(`     - Values closer to 0 suggest human-written content`);
+      }
+
+      // Final verdict
+      console.log(`\n⚖️ FINAL VERDICT:`);
+      console.log(`   User: ${userId}`);
+      console.log(`   Bot Probability: ${(userScore * 100).toFixed(1)}%`);
+      console.log(`   Confidence: ${(confidence * 100).toFixed(1)}%`);
+      console.log(`   Status: ${botLikelihood}`);
+      console.log(
+        `═══════════════════════════════════════════════════════════`
+      );
+
       const resultDoc: AnalysisResultDoc = {
         requestRef: reqRef.path,
         platform,
@@ -459,6 +606,24 @@ async function processRequest(requestId: string): Promise<void> {
       console.log(
         `🔧 Pipeline stages: BPC(${userStats.statistics.bpcAnalyzed}) → ML(${userStats.statistics.mlAnalyzed}) → Context(${userStats.statistics.contextAnalyzed})`
       );
+
+      // Summary verdict
+      const botProbability = (userStats.userScore * 100).toFixed(1);
+      const confidencePercent = (userStats.confidence * 100).toFixed(1);
+
+      if (userStats.userScore >= 0.6) {
+        console.log(
+          `🚨 BOT DETECTED: ${botProbability}% probability (${confidencePercent}% confidence)`
+        );
+      } else if (userStats.userScore >= 0.3) {
+        console.log(
+          `⚠️ SUSPICIOUS: ${botProbability}% bot probability (${confidencePercent}% confidence)`
+        );
+      } else {
+        console.log(
+          `✅ HUMAN: ${botProbability}% bot probability (${confidencePercent}% confidence)`
+        );
+      }
     } else {
       console.log(`⚠️ Unsupported platform: ${platform}`);
       totalCount = 0;

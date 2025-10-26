@@ -44,6 +44,7 @@ export class CompositeScorer {
 
     // If we only have BPC score (stage 1)
     if (stage === 'bpc' && bpcScore !== undefined) {
+      // Use the normalized BPC score (0-1 range) instead of raw BPC
       return bpcScore;
     }
 
@@ -92,6 +93,111 @@ export class CompositeScorer {
       return scores[0] || 0;
     }
 
+    return 0;
+  }
+
+  /**
+   * Calculate composite score with detailed logging
+   */
+  calculateScoreWithLogging(
+    comment: AnalysisPerCommentSummary,
+    commentId: string
+  ): number {
+    const { bpcScore, perplexityScore, bertScore, stage, confidence } = comment;
+
+    console.log(`\n🔍 Calculating score for comment ${commentId}:`);
+    console.log(`   Stage: ${stage}`);
+    console.log(`   Confidence: ${(confidence || 0).toFixed(3)}`);
+    console.log(`   BPC Score: ${bpcScore?.toFixed(3) || 'N/A'}`);
+    console.log(`   Perplexity Score: ${perplexityScore?.toFixed(3) || 'N/A'}`);
+    console.log(`   BERT Score: ${bertScore?.toFixed(3) || 'N/A'}`);
+
+    // If we only have BPC score (stage 1)
+    if (stage === 'bpc' && bpcScore !== undefined) {
+      console.log(`   → Using BPC score only: ${bpcScore.toFixed(3)}`);
+      return bpcScore;
+    }
+
+    // If we have ML scores (stage 2 or 3)
+    if (stage === 'ml' || stage === 'context') {
+      const scores: number[] = [];
+      const weights: number[] = [];
+      const scoreNames: string[] = [];
+
+      // Add BPC score if available
+      if (bpcScore !== undefined) {
+        scores.push(bpcScore);
+        weights.push(this.config.weights.bpc);
+        scoreNames.push('BPC');
+      }
+
+      // Add perplexity score if available and confident
+      if (
+        perplexityScore !== undefined &&
+        (confidence || 0) >= this.config.confidenceThreshold
+      ) {
+        scores.push(perplexityScore);
+        weights.push(this.config.weights.perplexity);
+        scoreNames.push('Perplexity');
+      } else if (perplexityScore !== undefined) {
+        console.log(
+          `   → Perplexity score ${perplexityScore.toFixed(
+            3
+          )} rejected (confidence ${(confidence || 0).toFixed(3)} < ${
+            this.config.confidenceThreshold
+          })`
+        );
+      }
+
+      // Add BERT score if available and confident
+      if (
+        bertScore !== undefined &&
+        (confidence || 0) >= this.config.confidenceThreshold
+      ) {
+        scores.push(bertScore);
+        weights.push(this.config.weights.bert);
+        scoreNames.push('BERT');
+      } else if (bertScore !== undefined) {
+        console.log(
+          `   → BERT score ${bertScore.toFixed(3)} rejected (confidence ${(
+            confidence || 0
+          ).toFixed(3)} < ${this.config.confidenceThreshold})`
+        );
+      }
+
+      // If we have multiple scores, use weighted average
+      if (scores.length > 1) {
+        const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+        if (totalWeight > 0) {
+          const weightedSum = scores.reduce(
+            (sum, score, i) => sum + score * weights[i],
+            0
+          );
+          const finalScore = weightedSum / totalWeight;
+
+          console.log(`   → Weighted combination: ${scoreNames.join(' + ')}`);
+          console.log(
+            `   → Weights: ${weights
+              .map((w, i) => `${scoreNames[i]}:${w.toFixed(2)}`)
+              .join(', ')}`
+          );
+          console.log(`   → Final score: ${finalScore.toFixed(3)}`);
+
+          return finalScore;
+        }
+      }
+
+      // Fallback to first available score
+      const fallbackScore = scores[0] || 0;
+      console.log(
+        `   → Using single score: ${
+          scoreNames[0] || 'fallback'
+        } = ${fallbackScore.toFixed(3)}`
+      );
+      return fallbackScore;
+    }
+
+    console.log(`   → No valid scores available, returning 0`);
     return 0;
   }
 
