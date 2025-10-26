@@ -9,6 +9,7 @@ export interface ScoringWeights {
   bpc: number; // Bits-per-character weight
   perplexity: number; // Perplexity model weight
   bert: number; // BERT classifier weight
+  aiDetector: number; // AI Detector weight
 }
 
 export interface ScoringConfig {
@@ -18,9 +19,10 @@ export interface ScoringConfig {
 }
 
 const DEFAULT_WEIGHTS: ScoringWeights = {
-  bpc: 0.2,
-  perplexity: 0.4,
-  bert: 0.4,
+  bpc: 0.15,
+  perplexity: 0.3,
+  bert: 0.3,
+  aiDetector: 0.25,
 };
 
 const DEFAULT_CONFIG: ScoringConfig = {
@@ -40,7 +42,14 @@ export class CompositeScorer {
    * Calculate composite score for a single comment
    */
   calculateScore(comment: AnalysisPerCommentSummary): number {
-    const { bpcScore, perplexityScore, bertScore, stage, confidence } = comment;
+    const {
+      bpcScore,
+      perplexityScore,
+      bertScore,
+      aiDetectorScore,
+      stage,
+      confidence,
+    } = comment;
 
     // If we only have BPC score (stage 1)
     if (stage === 'bpc' && bpcScore !== undefined) {
@@ -77,6 +86,15 @@ export class CompositeScorer {
         weights.push(this.config.weights.bert);
       }
 
+      // Add AI Detector score if available and confident
+      if (
+        aiDetectorScore !== undefined &&
+        (confidence || 0) >= this.config.confidenceThreshold
+      ) {
+        scores.push(aiDetectorScore);
+        weights.push(this.config.weights.aiDetector);
+      }
+
       // If we have multiple scores, use weighted average
       if (scores.length > 1) {
         const totalWeight = weights.reduce((sum, w) => sum + w, 0);
@@ -103,7 +121,14 @@ export class CompositeScorer {
     comment: AnalysisPerCommentSummary,
     commentId: string
   ): number {
-    const { bpcScore, perplexityScore, bertScore, stage, confidence } = comment;
+    const {
+      bpcScore,
+      perplexityScore,
+      bertScore,
+      aiDetectorScore,
+      stage,
+      confidence,
+    } = comment;
 
     console.log(`\n🔍 Calculating score for comment ${commentId}:`);
     console.log(`   Stage: ${stage}`);
@@ -111,6 +136,9 @@ export class CompositeScorer {
     console.log(`   BPC Score: ${bpcScore?.toFixed(3) || 'N/A'}`);
     console.log(`   Perplexity Score: ${perplexityScore?.toFixed(3) || 'N/A'}`);
     console.log(`   BERT Score: ${bertScore?.toFixed(3) || 'N/A'}`);
+    console.log(
+      `   AI Detector Score: ${aiDetectorScore?.toFixed(3) || 'N/A'}`
+    );
 
     // If we only have BPC score (stage 1)
     if (stage === 'bpc' && bpcScore !== undefined) {
@@ -162,6 +190,24 @@ export class CompositeScorer {
           `   → BERT score ${bertScore.toFixed(3)} rejected (confidence ${(
             confidence || 0
           ).toFixed(3)} < ${this.config.confidenceThreshold})`
+        );
+      }
+
+      // Add AI Detector score if available and confident
+      if (
+        aiDetectorScore !== undefined &&
+        (confidence || 0) >= this.config.confidenceThreshold
+      ) {
+        scores.push(aiDetectorScore);
+        weights.push(this.config.weights.aiDetector);
+        scoreNames.push('AI Detector');
+      } else if (aiDetectorScore !== undefined) {
+        console.log(
+          `   → AI Detector score ${aiDetectorScore.toFixed(
+            3
+          )} rejected (confidence ${(confidence || 0).toFixed(3)} < ${
+            this.config.confidenceThreshold
+          })`
         );
       }
 
@@ -236,6 +282,7 @@ export class CompositeScorer {
       averageBPC: number;
       averagePerplexity: number;
       averageBert: number;
+      averageAIDetector: number;
     };
   } {
     const validComments = comments.filter((c) => c.score > 0);
@@ -251,6 +298,7 @@ export class CompositeScorer {
           averageBPC: 0,
           averagePerplexity: 0,
           averageBert: 0,
+          averageAIDetector: 0,
         },
       };
     }
@@ -282,6 +330,13 @@ export class CompositeScorer {
         .reduce((sum, c) => sum + (c.bertScore || 0), 0) /
         validComments.filter((c) => c.bertScore !== undefined).length || 0;
 
+    const averageAIDetector =
+      validComments
+        .filter((c) => c.aiDetectorScore !== undefined)
+        .reduce((sum, c) => sum + (c.aiDetectorScore || 0), 0) /
+        validComments.filter((c) => c.aiDetectorScore !== undefined).length ||
+      0;
+
     // Calculate weighted user score
     const userScore =
       validComments.reduce((sum, c) => sum + c.score, 0) / validComments.length;
@@ -304,6 +359,7 @@ export class CompositeScorer {
         averageBPC,
         averagePerplexity,
         averageBert,
+        averageAIDetector,
       },
     };
   }

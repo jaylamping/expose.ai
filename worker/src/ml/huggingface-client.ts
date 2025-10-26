@@ -10,8 +10,8 @@ export class HuggingFaceClient {
   constructor(config: HuggingFaceConfig) {
     this.config = {
       baseUrl: 'https://api-inference.huggingface.co',
-      timeout: 30000,
-      maxRetries: 3,
+      timeout: 60000, // Increased to 60 seconds
+      maxRetries: 5, // Increased retries
       ...config,
     };
   }

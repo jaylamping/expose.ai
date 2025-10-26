@@ -32,6 +32,7 @@ export interface AnalysisPerCommentSummary {
   bpcScore?: number;
   perplexityScore?: number;
   bertScore?: number;
+  aiDetectorScore?: number;
   // Pipeline stage tracking
   stage: 'bpc' | 'ml' | 'context';
   usedParentContext?: boolean;
@@ -58,6 +59,7 @@ export interface AnalysisResultDoc {
   averageBPC: number;
   averagePerplexity: number;
   averageBert: number;
+  averageAIDetector: number;
   // Confidence metrics
   overallConfidence: number;
 }
@@ -113,4 +115,18 @@ export interface PerplexityConfig {
   maxLength: number;
   minLength: number;
   threshold: number; // Perplexity threshold for AI detection
+}
+
+export interface AIDetectorScore {
+  score: number; // 0-1, higher = more likely AI
+  confidence: number; // 0-1, confidence in the score
+  label: string; // Human or AI
+  rawScore: number; // Raw model output
+}
+
+export interface AIDetectorConfig {
+  model: string;
+  maxLength: number;
+  minLength: number;
+  threshold: number; // Score threshold for AI detection
 }

@@ -11,6 +11,7 @@ import { tokenizeComments } from './util/tokenizer.js';
 import { batchAnalyzeBPC } from './util/bpc-analyzer.js';
 import { createPerplexityScorer } from './ml/perplexity-scorer.js';
 import { createBertClassifier } from './ml/bert-classifier.js';
+import { createAIDetector } from './ml/ai-detector.js';
 import { createCompositeScorer } from './util/composite-scorer.js';
 import {
   AnalysisRequestData,
@@ -181,6 +182,7 @@ async function processRequest(requestId: string): Promise<void> {
       const compositeScorer = createCompositeScorer();
       const perplexityScorer = createPerplexityScorer();
       const bertClassifier = createBertClassifier();
+      const aiDetector = createAIDetector();
       console.log(`✅ Analysis components initialized`);
 
       // Stage 1: BPC Analysis
@@ -264,16 +266,21 @@ async function processRequest(requestId: string): Promise<void> {
 
         console.log(`📝 Prepared ${mlTexts.length} texts for ML analysis`);
 
-        // Run perplexity and BERT analysis in parallel
-        console.log(`🔄 Running perplexity and BERT analysis in parallel...`);
-        const [perplexityResults, bertResults] = await Promise.all([
-          perplexityScorer.scoreTexts(mlTexts),
-          bertClassifier.classifyTexts(mlTexts),
-        ]);
+        // Run perplexity, BERT, and AI Detector analysis in parallel
+        console.log(
+          `🔄 Running perplexity, BERT, and AI Detector analysis in parallel...`
+        );
+        const [perplexityResults, bertResults, aiDetectorResults] =
+          await Promise.all([
+            perplexityScorer.scoreTexts(mlTexts),
+            bertClassifier.classifyTexts(mlTexts),
+            aiDetector.detectTexts(mlTexts),
+          ]);
 
         console.log(`✅ ML analysis completed:`, {
           perplexityResults: perplexityResults.length,
           bertResults: bertResults.length,
+          aiDetectorResults: aiDetectorResults.length,
         });
 
         // Update inconclusive comments with ML scores
@@ -286,14 +293,19 @@ async function processRequest(requestId: string): Promise<void> {
           const bertResult = bertResults.find(
             (r) => r.id === comment.commentId
           );
+          const aiDetectorResult = aiDetectorResults.find(
+            (r) => r.id === comment.commentId
+          );
 
-          if (perplexityResult && bertResult) {
+          if (perplexityResult && bertResult && aiDetectorResult) {
             comment.perplexityScore = perplexityResult.score.score;
             comment.bertScore = bertResult.score.score;
+            comment.aiDetectorScore = aiDetectorResult.score.score;
             comment.stage = 'ml';
             comment.confidence = Math.max(
               perplexityResult.score.confidence,
-              bertResult.score.confidence
+              bertResult.score.confidence,
+              aiDetectorResult.score.confidence
             );
 
             // Recalculate composite score
@@ -315,6 +327,12 @@ async function processRequest(requestId: string): Promise<void> {
           averageBert: (
             inconclusiveComments.reduce(
               (sum, c) => sum + (c.bertScore || 0),
+              0
+            ) / mlUpdatedCount
+          ).toFixed(3),
+          averageAIDetector: (
+            inconclusiveComments.reduce(
+              (sum, c) => sum + (c.aiDetectorScore || 0),
               0
             ) / mlUpdatedCount
           ).toFixed(3),
@@ -368,18 +386,22 @@ async function processRequest(requestId: string): Promise<void> {
                   `🤖 Re-running ML analysis with combined context (${combinedText.length} chars total)`
                 );
                 // Re-run ML analysis with combined context
-                const [perplexityResult, bertResult] = await Promise.all([
-                  perplexityScorer.scoreText(combinedText),
-                  bertClassifier.classifyText(combinedText),
-                ]);
+                const [perplexityResult, bertResult, aiDetectorResult] =
+                  await Promise.all([
+                    perplexityScorer.scoreText(combinedText),
+                    bertClassifier.classifyText(combinedText),
+                    aiDetector.detectText(combinedText),
+                  ]);
 
                 comment.perplexityScore = perplexityResult.score;
                 comment.bertScore = bertResult.score;
+                comment.aiDetectorScore = aiDetectorResult.score;
                 comment.stage = 'context';
                 comment.usedParentContext = true;
                 comment.confidence = Math.max(
                   perplexityResult.confidence,
-                  bertResult.confidence
+                  bertResult.confidence,
+                  aiDetectorResult.confidence
                 );
 
                 // Recalculate composite score
@@ -430,6 +452,7 @@ async function processRequest(requestId: string): Promise<void> {
         averageBPC: userStats.statistics.averageBPC.toFixed(3),
         averagePerplexity: userStats.statistics.averagePerplexity.toFixed(3),
         averageBert: userStats.statistics.averageBert.toFixed(3),
+        averageAIDetector: userStats.statistics.averageAIDetector.toFixed(3),
       });
 
       // Detailed bot detection explanation
@@ -562,6 +585,17 @@ async function processRequest(requestId: string): Promise<void> {
         console.log(`     - Values closer to 0 suggest human-written content`);
       }
 
+      if (userStats.statistics.averageAIDetector > 0) {
+        console.log(
+          `   • AI Detector: ${userStats.statistics.averageAIDetector.toFixed(
+            3
+          )}`
+        );
+        console.log(`     - Specialized AI detection model`);
+        console.log(`     - Values closer to 1 suggest AI-generated content`);
+        console.log(`     - Values closer to 0 suggest human-written content`);
+      }
+
       // Final verdict
       console.log(`\n⚖️ FINAL VERDICT:`);
       console.log(`   User: ${userId}`);
@@ -588,6 +622,7 @@ async function processRequest(requestId: string): Promise<void> {
         averageBPC: userStats.statistics.averageBPC,
         averagePerplexity: userStats.statistics.averagePerplexity,
         averageBert: userStats.statistics.averageBert,
+        averageAIDetector: userStats.statistics.averageAIDetector,
         overallConfidence: userStats.confidence,
       };
 
