@@ -1,23 +1,45 @@
 /**
- * HuggingFace Inference API client for ML model inference
+ * Generic ML API client for model repo
+ * https://github.com/jaylamping/expose-ai-ml
  */
 import fetch from 'node-fetch';
-import { HuggingFaceConfig, HuggingFaceResponse } from '../lib/types';
 
-export class HuggingFaceClient {
-  private config: Required<HuggingFaceConfig>;
+export interface MLAPIConfig {
+  baseUrl: string;
+  apiKey?: string;
+  timeout?: number;
+  maxRetries?: number;
+}
 
-  constructor(config: HuggingFaceConfig) {
+export interface MLAPIResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+export interface MLAPIRequest {
+  inputs: string | string[] | Record<string, unknown>;
+  options?: {
+    wait_for_model?: boolean;
+    use_cache?: boolean;
+    [key: string]: unknown;
+  };
+}
+
+export class MLAPIClient {
+  private config: Required<MLAPIConfig>;
+
+  constructor(config: MLAPIConfig) {
     this.config = {
-      baseUrl: 'https://api-inference.huggingface.co',
-      timeout: 60000, // Increased to 60 seconds
-      maxRetries: 5, // Increased retries
+      apiKey: 'local-dev-key',
+      timeout: 60000,
+      maxRetries: 3,
       ...config,
     };
   }
 
   /**
-   * Make a request to HuggingFace Inference API
+   * Make a request to the ML API
    */
   async request<T = unknown>(
     model: string,
@@ -25,21 +47,24 @@ export class HuggingFaceClient {
     options: {
       wait_for_model?: boolean;
       use_cache?: boolean;
+      [key: string]: unknown;
     } = {}
-  ): Promise<HuggingFaceResponse<T>> {
+  ): Promise<MLAPIResponse<T>> {
     const url = `${this.config.baseUrl}/models/${model}`;
 
     const requestOptions = {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${this.config.apiKey}`,
         'Content-Type': 'application/json',
+        ...(this.config.apiKey && {
+          Authorization: `Bearer ${this.config.apiKey}`,
+        }),
       },
       body: JSON.stringify({
         inputs,
         options: {
           wait_for_model: true,
-          use_cache: true,
+          use_cache: false,
           ...options,
         },
       }),
@@ -66,7 +91,7 @@ export class HuggingFaceClient {
           // Rate limited - exponential backoff
           const delay = Math.pow(2, attempt) * 1000;
           console.log(
-            `HuggingFace rate limited, waiting ${delay}ms before retry ${
+            `ML API rate limited, waiting ${delay}ms before retry ${
               attempt + 1
             }/${this.config.maxRetries}`
           );
@@ -75,10 +100,10 @@ export class HuggingFaceClient {
         }
 
         if (response.status === 503) {
-          // Model is loading - wait and retry
+          // Service unavailable - wait and retry
           const delay = Math.pow(2, attempt) * 2000;
           console.log(
-            `HuggingFace model loading, waiting ${delay}ms before retry ${
+            `ML API service unavailable, waiting ${delay}ms before retry ${
               attempt + 1
             }/${this.config.maxRetries}`
           );
@@ -89,90 +114,91 @@ export class HuggingFaceClient {
         if (!response.ok) {
           const errorText = await response.text();
           throw new Error(
-            `HuggingFace API error: ${response.status} ${response.statusText} - ${errorText}`
+            `ML API request failed: ${response.status} ${response.statusText} - ${errorText}`
           );
         }
 
-        const data = (await response.json()) as T;
+        const data = await response.json();
         return {
-          data,
           success: true,
+          data: data as T,
         };
       } catch (error) {
         lastError = error as Error;
+        console.log(
+          `ML API request attempt ${attempt + 1}/${
+            this.config.maxRetries
+          } failed:`,
+          error instanceof Error ? error.message : String(error)
+        );
 
         if (attempt < this.config.maxRetries - 1) {
           const delay = Math.pow(2, attempt) * 1000;
-          console.log(
-            `HuggingFace request failed, retrying in ${delay}ms (attempt ${
-              attempt + 1
-            }/${this.config.maxRetries}):`,
-            error
-          );
           await new Promise((resolve) => setTimeout(resolve, delay));
         }
       }
     }
 
     return {
-      data: null as T,
-      error: lastError?.message || 'Max retries exceeded',
       success: false,
+      error: `Max retries exceeded: ${lastError?.message || 'Unknown error'}`,
     };
   }
 
   /**
-   * Text classification request
+   * Classify text using a classification model
    */
   async classifyText(
     text: string,
     model: string,
     options: { wait_for_model?: boolean; use_cache?: boolean } = {}
-  ): Promise<HuggingFaceResponse<Array<{ label: string; score: number }>>> {
+  ): Promise<MLAPIResponse<Array<{ label: string; score: number }>>> {
     return this.request(model, text, options);
   }
 
   /**
-   * Text generation request (for perplexity calculation)
+   * Generate text using a generation model
    */
   async generateText(
     text: string,
     model: string,
     options: { wait_for_model?: boolean; use_cache?: boolean } = {}
-  ): Promise<HuggingFaceResponse<Array<{ generated_text: string }>>> {
+  ): Promise<MLAPIResponse<Array<{ generated_text: string }>>> {
     return this.request(model, text, options);
   }
 
   /**
-   * Fill mask request (for BERT-style models)
+   * Calculate perplexity using a language model
    */
-  async fillMask(
+  async calculatePerplexity(
     text: string,
     model: string,
     options: { wait_for_model?: boolean; use_cache?: boolean } = {}
-  ): Promise<HuggingFaceResponse<Array<{ sequence: string; score: number }>>> {
+  ): Promise<MLAPIResponse<Array<{ perplexity: number }>>> {
     return this.request(model, text, options);
   }
 }
 
 /**
- * Create a HuggingFace client with environment configuration
+ * Create an ML API client with environment configuration
  */
-export function createHuggingFaceClient(): HuggingFaceClient {
-  const apiKey = process.env.HUGGINGFACE_API_KEY;
+export function createMLAPIClient(): MLAPIClient {
+  const baseUrl = process.env.ML_API_ADDRESS;
 
-  if (!apiKey) {
-    throw new Error('HUGGINGFACE_API_KEY environment variable is required');
+  if (!baseUrl) {
+    throw new Error('ML_API_ADDRESS environment variable is required');
   }
 
-  return new HuggingFaceClient({
-    apiKey,
-    baseUrl: process.env.HUGGINGFACE_BASE_URL,
-    timeout: process.env.HUGGINGFACE_TIMEOUT
-      ? parseInt(process.env.HUGGINGFACE_TIMEOUT)
+  console.log(`🔧 ML API configured: ${baseUrl}`);
+
+  return new MLAPIClient({
+    baseUrl,
+    apiKey: process.env.ML_API_KEY,
+    timeout: process.env.ML_API_TIMEOUT
+      ? parseInt(process.env.ML_API_TIMEOUT)
       : undefined,
-    maxRetries: process.env.HUGGINGFACE_MAX_RETRIES
-      ? parseInt(process.env.HUGGINGFACE_MAX_RETRIES)
+    maxRetries: process.env.ML_API_MAX_RETRIES
+      ? parseInt(process.env.ML_API_MAX_RETRIES)
       : undefined,
   });
 }

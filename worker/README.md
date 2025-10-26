@@ -29,7 +29,8 @@ Backend worker service for AI text detection using a cascading pipeline approach
 
    - `REDDIT_CLIENT_ID`: Reddit app client ID
    - `REDDIT_CLIENT_SECRET`: Reddit app client secret
-   - `HUGGINGFACE_API_KEY`: HuggingFace API key for ML models
+   - `ML_API_ADDRESS`: ML API endpoint (e.g., `http://localhost:8000` or `https://your-ml-api.com`)
+   - `ML_API_KEY`: API key for ML service (optional)
    - `GOOGLE_APPLICATION_CREDENTIALS`: Path to Firebase service account key
 
 4. **Run the worker**:

@@ -90,17 +90,17 @@ export interface BertConfig {
   threshold: number; // Score threshold for AI detection
 }
 
-export interface HuggingFaceConfig {
-  apiKey: string;
-  baseUrl?: string;
+export interface MLAPIConfig {
+  baseUrl: string;
+  apiKey?: string;
   timeout?: number;
   maxRetries?: number;
 }
 
-export interface HuggingFaceResponse<T = unknown> {
-  data: T;
-  error?: string;
+export interface MLAPIResponse<T = unknown> {
   success: boolean;
+  data?: T;
+  error?: string;
 }
 
 export interface PerplexityScore {
