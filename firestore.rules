@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    match /analysisRequests/{id} { 
+      allow create: if true; 
+      allow read: if true;
+      allow update: if true;
+    }
+    match /analysisResults/{id} { 
+      allow read: if true; 
+      allow create: if true;
+    }
+  }
+}

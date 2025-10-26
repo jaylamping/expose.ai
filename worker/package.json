@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "GOOGLE_APPLICATION_CREDENTIALS=./expose-ai-worker-key.json tsx watch src/index.ts",
+    "dev": "ENABLE_POLLING=true GOOGLE_APPLICATION_CREDENTIALS=./expose-ai-worker-key.json tsx watch src/index.ts",
+    "dev:emulator": "ENABLE_POLLING=true FIRESTORE_EMULATOR_HOST=localhost:8080 tsx watch src/index.ts",
+    "emulator": "firebase emulators:start --only firestore --project=expose-ai-227bc",
     "start": "node dist/index.js",
     "build": "tsc -p tsconfig.json",
     "deploy": "gcloud run deploy expose-ai-worker --source=. --platform=managed --region=us-central1"

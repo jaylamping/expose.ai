@@ -91,7 +91,7 @@ async function fetchWithRetry(
   throw new Error('Max retries exceeded');
 }
 
-export async function fetchUserComments(
+export async function fetchRedditCommentsForUser(
   username: string,
   limit: number
 ): Promise<RedditComment[]> {

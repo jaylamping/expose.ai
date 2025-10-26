@@ -103,6 +103,45 @@ export interface MLAPIResponse<T = unknown> {
   error?: string;
 }
 
+// ML API Types - matching expose-ai-ml repository
+export interface AnalysisOptions {
+  fast_only: boolean;
+  include_breakdown: boolean;
+  use_context: boolean;
+  force_full_analysis: boolean;
+}
+
+export interface BaseComment {
+  comment_id: string;
+  comment: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface UserComment extends BaseComment {
+  parent_comment?: BaseComment;
+  child_comment?: BaseComment;
+}
+
+export interface AnalyzeUserRequest {
+  user_id: string;
+  comments: UserComment[];
+  options?: AnalysisOptions;
+}
+
+export interface AnalyzeUserResponse {
+  user_id: string;
+  bot_score: number; // 0-100
+  confidence: number; // 0-100
+  is_likely_bot: boolean;
+  stage: string;
+  processing_time_ms: number;
+  comments_analyzed: number;
+  total_comments: number;
+  breakdown?: Record<string, unknown>;
+  explanation?: string;
+}
+
 export interface PerplexityScore {
   score: number; // 0-1, higher = more likely AI
   confidence: number; // 0-1, confidence in the score
