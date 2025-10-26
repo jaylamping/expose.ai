@@ -9,6 +9,7 @@
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "dotenv": "^17.2.3",
     "firebase-admin": "^12.6.0",
     "gpt-tokenizer": "^2.9.0",
     "node-fetch": "^3.3.2"

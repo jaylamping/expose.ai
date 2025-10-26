@@ -1,6 +1,10 @@
+import { config } from 'dotenv';
 import { createServer } from 'http';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+
+// Load environment variables from .env file
+config();
 import { pollQueuedRequests } from './listener.js';
 import { fetchUserComments, fetchParentContext } from './domains/reddit.js';
 import { tokenizeComments } from './util/tokenizer.js';
@@ -16,8 +20,8 @@ import {
 } from './lib/types';
 
 // Initialize Firebase Admin
-initializeApp();
-const db = getFirestore();
+const app = initializeApp();
+const db = getFirestore(app, 'expose-ai');
 
 // Simple HTTP server to accept manual triggers and run a background poller
 const server = createServer(async (req, res) => {
