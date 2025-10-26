@@ -63,19 +63,6 @@ export interface AnalysisResultDoc {
   overallConfidence: number;
 }
 
-export interface FetchOptions {
-  method?: string;
-  headers?: Record<string, string>;
-  body?: string;
-}
-
-export interface FetchResponse {
-  ok: boolean;
-  status: number;
-  statusText: string;
-  json(): Promise<unknown>;
-}
-
 export interface BertScore {
   score: number; // 0-1, higher = more likely AI
   confidence: number; // 0-1, confidence in the score

@@ -1,10 +1,5 @@
-import fetch from 'node-fetch';
-import {
-  FetchOptions,
-  FetchResponse,
-  RedditComment,
-  RedditCommentsListing,
-} from '../lib/types';
+import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
+import { RedditComment, RedditCommentsListing } from '../lib/types';
 
 interface RedditOAuthToken {
   access_token: string;
@@ -33,21 +28,23 @@ async function getRedditOAuthToken(): Promise<string> {
 
   const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
-  const response = await fetch('https://www.reddit.com/api/v1/access_token', {
-    method: 'POST',
-    headers: {
-      Authorization: `Basic ${auth}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'User-Agent': 'expose.ai-worker/0.1 (+github.com/jaylamping/expose.ai)',
-    },
-    body: 'grant_type=client_credentials',
-  });
+  const response = await axios.post(
+    'https://www.reddit.com/api/v1/access_token',
+    'grant_type=client_credentials',
+    {
+      headers: {
+        Authorization: `Basic ${auth}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'expose.ai-worker/0.1 (+github.com/jaylamping/expose.ai)',
+      },
+    }
+  );
 
-  if (!response.ok) {
+  if (response.status !== 200) {
     throw new Error(`Reddit OAuth failed: ${response.statusText}`);
   }
 
-  const tokenData = (await response.json()) as RedditOAuthToken;
+  const tokenData = response.data as RedditOAuthToken;
   oauthToken = tokenData;
   tokenExpiry = now + tokenData.expires_in * 1000 - 60000; // 1 minute buffer
 
@@ -56,12 +53,12 @@ async function getRedditOAuthToken(): Promise<string> {
 
 async function fetchWithRetry(
   url: string,
-  options: FetchOptions,
+  options: AxiosRequestConfig,
   maxRetries = 3
-): Promise<FetchResponse> {
+): Promise<AxiosResponse> {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      const response = await fetch(url, options);
+      const response = await axios(url, options);
 
       if (response.status === 429) {
         // Rate limited - exponential backoff
@@ -75,7 +72,7 @@ async function fetchWithRetry(
         continue;
       }
 
-      return response as FetchResponse;
+      return response;
     } catch (error) {
       if (attempt === maxRetries - 1) throw error;
       const delay = Math.pow(2, attempt) * 1000;
@@ -115,9 +112,9 @@ export async function fetchRedditCommentsForUser(
       },
     });
 
-    if (response.ok) {
+    if (response.status === 200) {
       console.log('✅ OAuth request successful');
-      const json = (await response.json()) as RedditCommentsListing;
+      const json = response.data as RedditCommentsListing;
       const children = json.data?.children ?? [];
       console.log(
         `📊 Raw API response contains ${children.length} comment objects`
@@ -165,13 +162,13 @@ export async function fetchRedditCommentsForUser(
     },
   });
 
-  if (!res.ok) {
+  if (res.status !== 200) {
     console.error(`❌ Public API request failed: ${res.statusText}`);
     throw new Error(`Reddit fetch failed: ${res.statusText}`);
   }
 
   console.log('✅ Public API request successful');
-  const json = (await res.json()) as RedditCommentsListing;
+  const json = res.data as RedditCommentsListing;
   const children = json.data?.children ?? [];
   console.log(
     `📊 Public API response contains ${children.length} comment objects`
@@ -217,8 +214,8 @@ export async function fetchParentContext(
       },
     });
 
-    if (response.ok) {
-      const json = (await response.json()) as RedditCommentsListing;
+    if (response.status === 200) {
+      const json = response.data as RedditCommentsListing;
       const comment = json.data?.children?.[0]?.data as RedditComment;
       if (comment) {
         // If this is a comment, try to get the parent
@@ -238,9 +235,8 @@ export async function fetchParentContext(
             },
           });
 
-          if (postResponse.ok) {
-            const postJson =
-              (await postResponse.json()) as RedditCommentsListing;
+          if (postResponse.status === 200) {
+            const postJson = postResponse.data as RedditCommentsListing;
             const post = postJson.data?.children?.[0]?.data as RedditComment;
             if (post) {
               return post.selftext || post.title || '';
