@@ -59,7 +59,6 @@ export interface AnalysisResultDoc {
   averageBPC: number;
   averagePerplexity: number;
   averageBert: number;
-  averageAIDetector: number;
   // Confidence metrics
   overallConfidence: number;
 }

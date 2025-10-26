@@ -127,7 +127,6 @@ async function processRequest(requestId: string): Promise<void> {
     return;
   }
 
-  console.log(`🔄 Updating request status to 'fetching'`);
   await reqRef.update({ status: 'fetching', updatedAt: Date.now() });
 
   try {
@@ -438,7 +437,6 @@ async function processRequest(requestId: string): Promise<void> {
         averageBPC: userStats.statistics.averageBPC.toFixed(3),
         averagePerplexity: userStats.statistics.averagePerplexity.toFixed(3),
         averageBert: userStats.statistics.averageBert.toFixed(3),
-        averageAIDetector: userStats.statistics.averageAIDetector.toFixed(3),
       });
 
       // Detailed bot detection explanation
@@ -571,17 +569,6 @@ async function processRequest(requestId: string): Promise<void> {
         console.log(`     - Values closer to 0 suggest human-written content`);
       }
 
-      if (userStats.statistics.averageAIDetector > 0) {
-        console.log(
-          `   • AI Detector: ${userStats.statistics.averageAIDetector.toFixed(
-            3
-          )}`
-        );
-        console.log(`     - Specialized AI detection model`);
-        console.log(`     - Values closer to 1 suggest AI-generated content`);
-        console.log(`     - Values closer to 0 suggest human-written content`);
-      }
-
       // Final verdict
       console.log(`\n⚖️ FINAL VERDICT:`);
       console.log(`   User: ${userId}`);
@@ -608,7 +595,6 @@ async function processRequest(requestId: string): Promise<void> {
         averageBPC: userStats.statistics.averageBPC,
         averagePerplexity: userStats.statistics.averagePerplexity,
         averageBert: userStats.statistics.averageBert,
-        averageAIDetector: userStats.statistics.averageAIDetector,
         overallConfidence: userStats.confidence,
       };
 

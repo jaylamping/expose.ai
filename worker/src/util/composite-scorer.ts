@@ -282,7 +282,6 @@ export class CompositeScorer {
       averageBPC: number;
       averagePerplexity: number;
       averageBert: number;
-      averageAIDetector: number;
     };
   } {
     const validComments = comments.filter((c) => c.score > 0);
@@ -298,7 +297,6 @@ export class CompositeScorer {
           averageBPC: 0,
           averagePerplexity: 0,
           averageBert: 0,
-          averageAIDetector: 0,
         },
       };
     }
@@ -330,13 +328,6 @@ export class CompositeScorer {
         .reduce((sum, c) => sum + (c.bertScore || 0), 0) /
         validComments.filter((c) => c.bertScore !== undefined).length || 0;
 
-    const averageAIDetector =
-      validComments
-        .filter((c) => c.aiDetectorScore !== undefined)
-        .reduce((sum, c) => sum + (c.aiDetectorScore || 0), 0) /
-        validComments.filter((c) => c.aiDetectorScore !== undefined).length ||
-      0;
-
     // Calculate weighted user score
     const userScore =
       validComments.reduce((sum, c) => sum + c.score, 0) / validComments.length;
@@ -359,7 +350,6 @@ export class CompositeScorer {
         averageBPC,
         averagePerplexity,
         averageBert,
-        averageAIDetector,
       },
     };
   }
