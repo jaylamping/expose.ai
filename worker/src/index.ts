@@ -1,7 +1,8 @@
 import { config } from 'dotenv';
 import { createServer } from 'http';
-import { initializeApp } from 'firebase-admin/app';
+import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { readFileSync } from 'fs';
 
 // Load environment variables from .env file
 config();
@@ -19,9 +20,27 @@ import {
   AnalysisResultDoc,
 } from './lib/types.js';
 
-// Initialize Firebase Admin
-const app = initializeApp();
-const db = getFirestore(app, 'expose-ai');
+// Initialize Firebase Admin with service account credentials
+let app: ReturnType<typeof initializeApp>;
+
+if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+  // Local development: use service account key file
+  const serviceAccountPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, 'utf8'));
+
+  app = initializeApp({
+    credential: cert(serviceAccount),
+    projectId: serviceAccount.project_id,
+  });
+} else {
+  // Production (Cloud Run): use default credentials
+  app = initializeApp({
+    projectId: 'expose-ai-227bc',
+  });
+}
+
+// Use default database (remove the 'expose-ai' parameter)
+const db = getFirestore(app);
 
 // Simple HTTP server to accept manual triggers and run a background poller
 const server = createServer(async (req, res) => {
@@ -97,9 +116,17 @@ const server = createServer(async (req, res) => {
 
 const port = Number(process.env.PORT) || 8080;
 server.listen(port, () => {
-  pollQueuedRequests(db, processRequest).catch((e) =>
-    console.error('poller failed', e)
-  );
+  console.log(`🚀 Server running on port ${port}`);
+
+  // Only start polling if we have a test request or want to process requests
+  if (process.env.ENABLE_POLLING === 'true') {
+    console.log('🔄 Starting request polling...');
+    pollQueuedRequests(db, processRequest).catch((e) =>
+      console.error('poller failed', e)
+    );
+  } else {
+    console.log('⏸️ Polling disabled. Set ENABLE_POLLING=true to enable.');
+  }
 });
 
 async function processRequest(requestId: string): Promise<void> {
