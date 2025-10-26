@@ -11,7 +11,6 @@ import { tokenizeComments } from './util/tokenizer.js';
 import { batchAnalyzeBPC } from './util/bpc-analyzer.js';
 import { createPerplexityScorer } from './ml/perplexity-scorer.js';
 import { createBertClassifier } from './ml/bert-classifier.js';
-import { createAIDetector } from './ml/ai-detector.js';
 import { createCompositeScorer } from './util/composite-scorer.js';
 import {
   AnalysisRequestData,
@@ -182,7 +181,6 @@ async function processRequest(requestId: string): Promise<void> {
       const compositeScorer = createCompositeScorer();
       const perplexityScorer = createPerplexityScorer();
       const bertClassifier = createBertClassifier();
-      const aiDetector = createAIDetector();
       console.log(`✅ Analysis components initialized`);
 
       // Stage 1: BPC Analysis
@@ -270,17 +268,14 @@ async function processRequest(requestId: string): Promise<void> {
         console.log(
           `🔄 Running perplexity, BERT, and AI Detector analysis in parallel...`
         );
-        const [perplexityResults, bertResults, aiDetectorResults] =
-          await Promise.all([
-            perplexityScorer.scoreTexts(mlTexts),
-            bertClassifier.classifyTexts(mlTexts),
-            aiDetector.detectTexts(mlTexts),
-          ]);
+        const [perplexityResults, bertResults] = await Promise.all([
+          perplexityScorer.scoreTexts(mlTexts),
+          bertClassifier.classifyTexts(mlTexts),
+        ]);
 
         console.log(`✅ ML analysis completed:`, {
           perplexityResults: perplexityResults.length,
           bertResults: bertResults.length,
-          aiDetectorResults: aiDetectorResults.length,
         });
 
         // Update inconclusive comments with ML scores
@@ -293,19 +288,14 @@ async function processRequest(requestId: string): Promise<void> {
           const bertResult = bertResults.find(
             (r) => r.id === comment.commentId
           );
-          const aiDetectorResult = aiDetectorResults.find(
-            (r) => r.id === comment.commentId
-          );
 
-          if (perplexityResult && bertResult && aiDetectorResult) {
+          if (perplexityResult && bertResult) {
             comment.perplexityScore = perplexityResult.score.score;
             comment.bertScore = bertResult.score.score;
-            comment.aiDetectorScore = aiDetectorResult.score.score;
             comment.stage = 'ml';
             comment.confidence = Math.max(
               perplexityResult.score.confidence,
-              bertResult.score.confidence,
-              aiDetectorResult.score.confidence
+              bertResult.score.confidence
             );
 
             // Recalculate composite score
@@ -386,22 +376,18 @@ async function processRequest(requestId: string): Promise<void> {
                   `🤖 Re-running ML analysis with combined context (${combinedText.length} chars total)`
                 );
                 // Re-run ML analysis with combined context
-                const [perplexityResult, bertResult, aiDetectorResult] =
-                  await Promise.all([
-                    perplexityScorer.scoreText(combinedText),
-                    bertClassifier.classifyText(combinedText),
-                    aiDetector.detectText(combinedText),
-                  ]);
+                const [perplexityResult, bertResult] = await Promise.all([
+                  perplexityScorer.scoreText(combinedText),
+                  bertClassifier.classifyText(combinedText),
+                ]);
 
                 comment.perplexityScore = perplexityResult.score;
                 comment.bertScore = bertResult.score;
-                comment.aiDetectorScore = aiDetectorResult.score;
                 comment.stage = 'context';
                 comment.usedParentContext = true;
                 comment.confidence = Math.max(
                   perplexityResult.confidence,
-                  bertResult.confidence,
-                  aiDetectorResult.confidence
+                  bertResult.confidence
                 );
 
                 // Recalculate composite score

@@ -6,7 +6,7 @@ import { config } from 'dotenv';
 import fetch from 'node-fetch';
 
 // Load environment variables
-config({ path: '.env' });
+config({ path: '../.env' });
 
 async function testHuggingFaceAPI() {
   console.log('🧪 Testing Hugging Face API directly...');

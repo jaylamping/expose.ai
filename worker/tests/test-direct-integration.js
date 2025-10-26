@@ -6,7 +6,7 @@ import { config } from 'dotenv';
 import fetch from 'node-fetch';
 
 // Load environment variables
-config({ path: '.env' });
+config({ path: '../.env' });
 
 async function testDirectIntegration() {
   console.log('🧪 Testing direct integration with working model...');

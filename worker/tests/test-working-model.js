@@ -6,7 +6,7 @@ import { config } from 'dotenv';
 import { createAIDetector } from '../dist/ml/ai-detector.js';
 
 // Load environment variables
-config({ path: '.env' });
+config({ path: '../.env' });
 
 async function testWorkingModel() {
   console.log('🧪 Testing with only the working model...');

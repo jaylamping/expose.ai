@@ -4,12 +4,9 @@ This directory contains test files for the AI Detector integration.
 
 ## Test Files
 
-- **`test-simple-ai-detector.js`** - Main integration test with error handling
-- **`test-working-model.js`** - Test using only the working model
 - **`test-hf-api.js`** - Direct Hugging Face API testing
 - **`test-direct-integration.js`** - Direct integration test with working model
 - **`test-simple-client.js`** - Simplified HuggingFace client test
-- **`test-request.js`** - Original request test (legacy)
 
 ## Running Tests
 
