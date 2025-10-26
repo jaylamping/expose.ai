@@ -9,6 +9,11 @@ export interface RedditComment {
   score: number;
   selftext?: string;
   title?: string;
+  ups?: number;
+  downs?: number;
+  controversiality?: number;
+  num_comments?: number;
+  awarders?: string[];
 }
 
 export type RedditCommentsListing = {

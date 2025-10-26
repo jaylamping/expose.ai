@@ -157,9 +157,6 @@ export async function fetchRedditCommentsForUser(
   console.log('✅ Public API request successful');
   const json = res.data as RedditCommentsListing;
   const children = json.data?.children ?? [];
-  console.log(
-    `📊 Public API response contains ${children.length} comment objects`
-  );
 
   const comments = children.map((c: { data: RedditComment }) => {
     const d = c.data;
@@ -172,6 +169,11 @@ export async function fetchRedditCommentsForUser(
       created_utc: d.created_utc,
       permalink: `https://www.reddit.com${d.permalink}`,
       score: d.score,
+      ups: d.ups,
+      downs: d.downs,
+      controversiality: d.controversiality,
+      num_comments: d.num_comments,
+      awarders: d.awarders,
     } as RedditComment;
   });
 
