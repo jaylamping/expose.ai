@@ -95,13 +95,19 @@ export async function fetchUserComments(
   username: string,
   limit: number
 ): Promise<RedditComment[]> {
+  console.log(
+    `🔍 Starting to fetch comments for user: ${username} (limit: ${limit})`
+  );
+
   try {
     // Try OAuth first for higher rate limits
+    console.log('🔐 Attempting OAuth authentication...');
     const token = await getRedditOAuthToken();
     const url = `https://oauth.reddit.com/user/${encodeURIComponent(
       username
     )}/comments?limit=${Math.min(limit, 100)}&raw_json=1`;
 
+    console.log(`📡 Making OAuth request to: ${url}`);
     const response = await fetchWithRetry(url, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -110,9 +116,14 @@ export async function fetchUserComments(
     });
 
     if (response.ok) {
+      console.log('✅ OAuth request successful');
       const json = (await response.json()) as RedditCommentsListing;
       const children = json.data?.children ?? [];
-      return children.map((c: { data: RedditComment }) => {
+      console.log(
+        `📊 Raw API response contains ${children.length} comment objects`
+      );
+
+      const comments = children.map((c: { data: RedditComment }) => {
         const d = c.data;
         return {
           id: d.id,
@@ -125,25 +136,48 @@ export async function fetchUserComments(
           score: d.score,
         } as RedditComment;
       });
+
+      console.log(`📝 Processed ${comments.length} comments from OAuth API`);
+      console.log('📋 Sample comment structure:', {
+        id: comments[0]?.id,
+        body: comments[0]?.body?.substring(0, 100) + '...',
+        subreddit: comments[0]?.subreddit,
+        score: comments[0]?.score,
+        created_utc: comments[0]?.created_utc,
+      });
+
+      return comments;
     }
   } catch (error) {
-    console.log('OAuth failed, falling back to public API:', error);
+    console.log('❌ OAuth failed, falling back to public API:', error);
   }
 
   // Fallback to public endpoint
+  console.log('🌐 Falling back to public Reddit API...');
   const url = `https://www.reddit.com/user/${encodeURIComponent(
     username
   )}/comments.json?limit=${Math.min(limit, 100)}&raw_json=1`;
+
+  console.log(`📡 Making public API request to: ${url}`);
   const res = await fetchWithRetry(url, {
     headers: {
       'User-Agent': 'expose.ai-worker/0.1 (+github.com/jaylamping/expose.ai)',
     },
   });
 
-  if (!res.ok) throw new Error(`Reddit fetch failed: ${res.statusText}`);
+  if (!res.ok) {
+    console.error(`❌ Public API request failed: ${res.statusText}`);
+    throw new Error(`Reddit fetch failed: ${res.statusText}`);
+  }
+
+  console.log('✅ Public API request successful');
   const json = (await res.json()) as RedditCommentsListing;
   const children = json.data?.children ?? [];
-  return children.map((c: { data: RedditComment }) => {
+  console.log(
+    `📊 Public API response contains ${children.length} comment objects`
+  );
+
+  const comments = children.map((c: { data: RedditComment }) => {
     const d = c.data;
     return {
       id: d.id,
@@ -156,6 +190,17 @@ export async function fetchUserComments(
       score: d.score,
     } as RedditComment;
   });
+
+  console.log(`📝 Processed ${comments.length} comments from public API`);
+  console.log('📋 Sample comment structure:', {
+    id: comments[0]?.id,
+    body: comments[0]?.body?.substring(0, 100) + '...',
+    subreddit: comments[0]?.subreddit,
+    score: comments[0]?.score,
+    created_utc: comments[0]?.created_utc,
+  });
+
+  return comments;
 }
 
 export async function fetchParentContext(
