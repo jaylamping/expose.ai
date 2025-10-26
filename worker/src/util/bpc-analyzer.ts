@@ -12,19 +12,20 @@ export interface BPCAnalysis {
 }
 
 export interface BPCConfig {
-  botThreshold: number; // BPC < this = likely bot
-  humanThreshold: number; // BPC > this = likely human
+  botThreshold: number; // BPC < this = likely bot (research: AI models ~1.24-1.32 BPC)
+  humanThreshold: number; // BPC > this = likely human (human text typically higher entropy)
   minLength: number; // Minimum text length to analyze
 }
 
 const DEFAULT_CONFIG: BPCConfig = {
-  botThreshold: 2.0,
-  humanThreshold: 4.5,
+  botThreshold: 1.5, // Based on research: well-trained models achieve ~1.24-1.32 BPC
+  humanThreshold: 2.5, // Human text typically has higher entropy than AI models
   minLength: 15, // Lowered to catch more Reddit/Twitter comments
 };
 
 /**
  * Calculate BPC score for a text string
+ * Based on research: well-trained neural models achieve ~1.24-1.32 BPC
  * Lower BPC = more repetitive/structured = more likely AI-generated
  * Higher BPC = more random/entropic = more likely human-written
  */
@@ -36,7 +37,7 @@ export function calculateBPC(text: string): number {
   // Remove extra whitespace and normalize
   const normalized = text.replace(/\s+/g, ' ').trim();
 
-  // Calculate character-level entropy
+  // Calculate character-level entropy (Shannon entropy)
   const charFreq = new Map<string, number>();
   for (const char of normalized) {
     charFreq.set(char, (charFreq.get(char) || 0) + 1);
@@ -51,6 +52,7 @@ export function calculateBPC(text: string): number {
   }
 
   // Calculate BPC as entropy (bits per character)
+  // Research shows: AI models ~1.24-1.32, human text typically higher
   return entropy;
 }
 
