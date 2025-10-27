@@ -149,8 +149,6 @@ async function processRequest(requestId: string): Promise<void> {
 
     const mlClient = createMLAPIClient();
 
-    console.log(`🎯 Processing analysis for ${platform} user: ${userId}`);
-
     if (platform === 'reddit') {
       console.log(`📥 Fetching Reddit comments for user: ${userId}`);
       const comments = await fetchRedditCommentsForUser(userId, 100);

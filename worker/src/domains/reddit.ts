@@ -92,10 +92,6 @@ export async function fetchRedditCommentsForUser(
   username: string,
   limit: number
 ): Promise<RedditComment[]> {
-  console.log(
-    `🔍 Starting to fetch comments for user: ${username} (limit: ${limit})`
-  );
-
   try {
     // Try OAuth first for higher rate limits
     console.log('🔐 Attempting OAuth authentication...');
@@ -127,6 +123,11 @@ export async function fetchRedditCommentsForUser(
           created_utc: d.created_utc,
           permalink: `https://www.reddit.com${d.permalink}`,
           score: d.score,
+          ups: d.ups,
+          downs: d.downs,
+          controversiality: d.controversiality,
+          num_comments: d.num_comments,
+          awarders: d.awarders,
         } as RedditComment;
       });
 

@@ -29,7 +29,6 @@ export class MLAPIClient {
     request: AnalyzeUserRequest
   ): Promise<MLAPIResponse<AnalyzeUserResponse>> {
     const url = `${this.config.baseUrl}/api/v1/analyze/user`;
-    console.log('url', url);
 
     const requestConfig: AxiosRequestConfig = {
       method: 'POST',
@@ -44,87 +43,49 @@ export class MLAPIClient {
       timeout: this.config.timeout,
     };
 
-    let lastError: Error | null = null;
+    try {
+      const response: AxiosResponse = await axios(requestConfig);
 
-    for (let attempt = 0; attempt < this.config.maxRetries; attempt++) {
-      try {
-        const response: AxiosResponse = await axios(requestConfig);
+      console.log('response', response.data);
 
-        if (response.status === 429) {
-          // Rate limited - exponential backoff
-          const delay = Math.pow(2, attempt) * 1000;
-          console.log(
-            `ML API rate limited, waiting ${delay}ms before retry ${
-              attempt + 1
-            }/${this.config.maxRetries}`
-          );
-          await new Promise((resolve) => setTimeout(resolve, delay));
-          continue;
-        }
-
-        if (response.status === 503) {
-          // Service unavailable - wait and retry
-          const delay = Math.pow(2, attempt) * 2000;
-          console.log(
-            `ML API service unavailable, waiting ${delay}ms before retry ${
-              attempt + 1
-            }/${this.config.maxRetries}`
-          );
-          await new Promise((resolve) => setTimeout(resolve, delay));
-          continue;
-        }
-
-        return {
-          success: true,
-          data: response.data as AnalyzeUserResponse,
-        };
-      } catch (error: unknown) {
-        lastError = error as Error;
-
-        // Handle axios-specific error responses
-        if (error && typeof error === 'object' && 'response' in error) {
-          const axiosError = error as {
-            response: { status: number; statusText: string; data: unknown };
-          };
-          const status = axiosError.response.status;
-          if (status === 429 || status === 503) {
-            const delay = Math.pow(2, attempt) * (status === 429 ? 1000 : 2000);
-            console.log(
-              `ML API ${
-                status === 429 ? 'rate limited' : 'service unavailable'
-              }, waiting ${delay}ms before retry ${attempt + 1}/${
-                this.config.maxRetries
-              }`
-            );
-            await new Promise((resolve) => setTimeout(resolve, delay));
-            continue;
-          }
-
-          throw new Error(
-            `ML API analyze-user request failed: ${status} ${
-              axiosError.response.statusText
-            } - ${JSON.stringify(axiosError.response.data)}`
-          );
-        }
-
-        console.log(
-          `ML API analyze-user request attempt ${attempt + 1}/${
-            this.config.maxRetries
-          } failed:`,
-          error instanceof Error ? error.message : String(error)
-        );
-
-        if (attempt < this.config.maxRetries - 1) {
-          const delay = Math.pow(2, attempt) * 1000;
-          await new Promise((resolve) => setTimeout(resolve, delay));
-        }
+      if (response.status === 429) {
+        // Rate limited - exponential backoff
+        const delay = 1000;
+        console.log(`ML API rate limited, waiting ${delay}ms before retry`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
-    }
 
-    return {
-      success: false,
-      error: `Max retries exceeded: ${lastError?.message || 'Unknown error'}`,
-    };
+      if (response.status === 503) {
+        // Service unavailable - wait and retry
+        const delay = 2000;
+        console.log(
+          `ML API service unavailable, waiting ${delay}ms before retry`
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+
+      return {
+        success: true,
+        data: response.data as AnalyzeUserResponse,
+      };
+    } catch (error: unknown) {
+      // Handle axios-specific error responses
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as {
+          response: { status: number; statusText: string; data: unknown };
+        };
+        const status = axiosError.response.status;
+        if (status === 429 || status === 503) {
+          const delay = status === 429 ? 1000 : 2000;
+
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+
+        throw error;
+      }
+
+      throw error;
+    }
   }
 }
 
