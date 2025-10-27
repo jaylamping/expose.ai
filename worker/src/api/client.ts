@@ -46,8 +46,6 @@ export class MLAPIClient {
     try {
       const response: AxiosResponse = await axios(requestConfig);
 
-      console.log('response', response.data);
-
       if (response.status === 429) {
         // Rate limited - exponential backoff
         const delay = 1000;
